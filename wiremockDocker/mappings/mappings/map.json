@@ -1,0 +1,178 @@
+{
+  "mappings": [
+    {
+      "name": "Успешное создание Акта выполненных работ (201)",
+      "priority": 5,
+      "request": {
+        "method": "POST",
+        "url": "/buh/hs/integration/v1/completed-orders",
+        "headers": {
+          "X-API-Key": {
+            "equalTo": "SECRET-API-KEY-FOR-SERVICEROUTE"
+          }
+        },
+        "bodyPatterns": [
+          {
+            "matchesJsonPath": "$[?(@.sourceOrderId && @.completionDate && @.customerTaxId && @.services)]"
+          }
+        ]
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "document1cId": "{{randomValue type='UUID'}}",
+          "document1cNumber": "{{jsonPath request.body '$.sourceOrderId'}}",
+          "message": "Документ 'Реализация (акт, накладная) {{jsonPath request.body '$.sourceOrderId'}}' успешно создан и проведен."
+        },
+        "fixedDelayMilliseconds": 300
+      }
+    },
+    {
+      "name": "Ошибка 400 - Номенклатура не найдена",
+      "priority": 2,
+      "request": {
+        "method": "POST",
+        "urlPath": "/buh/hs/integration/v1/completed-orders",
+        "headers": {
+          "X-API-Key": { "equalTo": "SECRET-API-KEY-FOR-SERVICEROUTE" }
+        },
+        "bodyPatterns": [{
+          "matchesJsonPath" : "$[?(@.materials..nomenclatureId == 'Т-99999')]"
+        }]
+      },
+      "response": {
+        "status": 400,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "errorCode": "NOMENCLATURE_NOT_FOUND",
+          "errorMessage": "Номенклатура с ID 'Т-99999' не найдена в справочнике 1С."
+        }
+      }
+    },
+    {
+      "name": "Ошибка 401 - Неверный или отсутствующий API-ключ",
+      "priority": 1,
+      "request": {
+        "method": "ANY",
+        "urlPathPattern": "/buh/hs/integration/v1/.*",
+        "headers": {
+          "X-API-Key": {
+            "doesNotMatch": "SECRET-API-KEY-FOR-SERVICEROUTE"
+          }
+        }
+      },
+      "response": {
+        "status": 401,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "errorCode": "UNAUTHENTICATED",
+          "errorMessage": "Запрос не аутентифицирован. Убедитесь, что заголовок X-API-Key указан и корректен."
+        }
+      }
+    },
+
+    {
+      "name": "Получение полного списка номенклатуры",
+      "priority": 5,
+      "request": {
+        "method": "GET",
+        "url": "/buh/hs/integration/v1/nomenclature",
+        "headers": { "X-API-Key": { "equalTo": "SECRET-API-KEY-FOR-SERVICEROUTE" }}
+      },
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "jsonBody": [
+          { "id": "У-00001", "name": "Диагностика оборудования", "type": "service", "unit": "час", "price": 1500.00 },
+          { "id": "У-00002", "name": "Замена компонента", "type": "service", "unit": "шт", "price": 2000.00 },
+          { "id": "У-00003", "name": "Ремонт системного блока", "type": "service", "unit": "шт", "price": 3500.00 },
+          { "id": "У-00004", "name": "Установка программного обеспечения", "type": "service", "unit": "час", "price": 1200.00 },
+          { "id": "У-00005", "name": "Настройка сети", "type": "service", "unit": "час", "price": 1800.00 },
+          { "id": "У-00006", "name": "Восстановление данных", "type": "service", "unit": "час", "price": 2500.00 },
+          { "id": "У-00007", "name": "Чистка от пыли", "type": "service", "unit": "шт", "price": 800.00 },
+          { "id": "У-00008", "name": "Замена термопасты", "type": "service", "unit": "шт", "price": 600.00 },
+          { "id": "У-00009", "name": "Настройка BIOS", "type": "service", "unit": "шт", "price": 1000.00 },
+          { "id": "У-00010", "name": "Консультация по оборудованию", "type": "service", "unit": "час", "price": 900.00 },
+          { "id": "Т-00543", "name": "Контроллер питания", "article": "ZXC-543-B", "type": "material", "unit": "шт", "price": 3200.50 },
+          { "id": "Т-00544", "name": "Оперативная память DDR4 8GB", "article": "RAM-8GB-DDR4", "type": "material", "unit": "шт", "price": 2500.00 },
+          { "id": "Т-00545", "name": "Жесткий диск SSD 256GB", "article": "SSD-256GB", "type": "material", "unit": "шт", "price": 3500.00 },
+          { "id": "Т-00546", "name": "Видеокарта GTX 1660", "article": "GPU-GTX1660", "type": "material", "unit": "шт", "price": 15000.00 },
+          { "id": "Т-00547", "name": "Материнская плата B450", "article": "MB-B450", "type": "material", "unit": "шт", "price": 6000.00 },
+          { "id": "Т-00548", "name": "Процессор AMD Ryzen 5", "article": "CPU-R5-3600", "type": "material", "unit": "шт", "price": 12000.00 },
+          { "id": "Т-00549", "name": "Блок питания 600W", "article": "PSU-600W", "type": "material", "unit": "шт", "price": 4000.00 },
+          { "id": "Т-00550", "name": "Кулер для процессора", "article": "COOLER-CPU", "type": "material", "unit": "шт", "price": 1500.00 },
+          { "id": "Т-00551", "name": "Корпус ATX", "article": "CASE-ATX", "type": "material", "unit": "шт", "price": 3000.00 },
+          { "id": "Т-00552", "name": "Клавиатура механическая", "article": "KB-MECH", "type": "material", "unit": "шт", "price": 4500.00 },
+          { "id": "Т-00553", "name": "Мышь игровая", "article": "MOUSE-GAME", "type": "material", "unit": "шт", "price": 2000.00 },
+          { "id": "Т-00554", "name": "Монитор 24 дюйма", "article": "MON-24", "type": "material", "unit": "шт", "price": 12000.00 },
+          { "id": "Т-00555", "name": "Кабель HDMI", "article": "CABLE-HDMI", "type": "material", "unit": "шт", "price": 500.00 },
+          { "id": "Т-00556", "name": "Термопаста", "article": "PASTE-THERM", "type": "material", "unit": "шт", "price": 300.00 },
+          { "id": "Т-00557", "name": "Вентилятор 120mm", "article": "FAN-120", "type": "material", "unit": "шт", "price": 800.00 }
+        ]
+      }
+    },
+    {
+      "name": "Получение только услуг",
+      "priority": 3,
+      "request": {
+        "method": "GET",
+        "urlPath": "/buh/hs/integration/v1/nomenclature",
+        "queryParameters": {
+          "type": { "equalTo": "service" }
+        },
+        "headers": { "X-API-Key": { "equalTo": "SECRET-API-KEY-FOR-SERVICEROUTE" }}
+      },
+      "response": {
+        "status": 200,
+        "headers": {"Content-Type": "application/json"},
+        "jsonBody": [
+          { "id": "У-00001", "name": "Диагностика оборудования", "type": "service", "unit": "час", "price": 1500.00 },
+          { "id": "У-00002", "name": "Замена компонента", "type": "service", "unit": "шт", "price": 2000.00 },
+          { "id": "У-00003", "name": "Ремонт системного блока", "type": "service", "unit": "шт", "price": 3500.00 },
+          { "id": "У-00004", "name": "Установка программного обеспечения", "type": "service", "unit": "час", "price": 1200.00 },
+          { "id": "У-00005", "name": "Настройка сети", "type": "service", "unit": "час", "price": 1800.00 },
+          { "id": "У-00006", "name": "Восстановление данных", "type": "service", "unit": "час", "price": 2500.00 },
+          { "id": "У-00007", "name": "Чистка от пыли", "type": "service", "unit": "шт", "price": 800.00 },
+          { "id": "У-00008", "name": "Замена термопасты", "type": "service", "unit": "шт", "price": 600.00 },
+          { "id": "У-00009", "name": "Настройка BIOS", "type": "service", "unit": "шт", "price": 1000.00 },
+          { "id": "У-00010", "name": "Консультация по оборудованию", "type": "service", "unit": "час", "price": 900.00 }
+        ]
+      }
+    },
+    {
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/accounting/expenses",
+        "headers": {
+          "Content-Type": {
+            "equalTo": "application/json"
+          },
+          "Authorization": {
+            "matches": "Bearer .+"
+          }
+        },
+        "bodyPatterns": [
+          {
+            "matchesJsonPath": "$[?(@.expenseId != null && @.eventName != null && @.clientFullName != null && @.contractorType != null && @.contractorBankAccount != null && @.contractorBik != null && @.approvedAdvance != null && @.actualCost != null)]"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "expenseId": "{{jsonPath request.body '$.expenseId'}}",
+          "sentToAccounting": true,
+          "message": "Информация по статье расходов успешно передана в 1С."
+          }
+        }
+    }
+  ]
+}

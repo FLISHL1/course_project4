@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результат создания заказа - ServiceRoute</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .message {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #e7f3ff;
+            border-left: 4px solid #2196F3;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Результат создания заказа</h1>
+        
+        <div th:if="${success}" class="message success">
+            <h2>✅ Заказ успешно отправлен в 1C!</h2>
+            <p th:text="${message}"></p>
+            <div class="info" th:if="${documentNumber}">
+                <strong>Номер документа в 1C:</strong> <span th:text="${documentNumber}"></span>
+            </div>
+            <div class="info" th:if="${documentId}">
+                <strong>ID документа в 1C:</strong> <span th:text="${documentId}"></span>
+            </div>
+        </div>
+        
+        <div th:if="${!success}" class="message error">
+            <h2>❌ Ошибка при создании заказа</h2>
+            <p th:text="${errorMessage}"></p>
+        </div>
+        
+        <a th:href="@{/requests}" class="btn" style="background-color: #FF9800;">Список заявок и заказов</a>
+        <a th:if="${requestId != null}" 
+           th:href="@{/requests/{id}(id=${requestId})}" 
+           class="btn" 
+           style="background-color: #9C27B0; margin-left: 10px;">Вернуться к заявке</a>
+        <a th:href="@{/}" class="btn" style="background-color: #2196F3; margin-left: 10px;">На главную</a>
+    </div>
+</body>
+</html>
+

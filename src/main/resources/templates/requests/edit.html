@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактировать заявку #<span th:text="${request.id}"></span> - ServiceRoute</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            padding: 12px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            margin-left: 10px;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a th:href="@{/requests/{id}(id=${request.id})}" style="color: #2196F3; text-decoration: none;">← Назад к заявке</a>
+        
+        <h1>Редактировать заявку #<span th:text="${request.id}"></span></h1>
+        
+        <div th:if="${errorMessage}" class="alert alert-error" th:text="${errorMessage}"></div>
+        
+        <form th:action="@{/requests/{id}/update(id=${request.id})}" method="post">
+            <div class="form-group" th:if="${currentCustomer != null}">
+                <label>Текущий клиент:</label>
+                <div style="padding: 10px; background-color: #f9f9f9; border-radius: 5px; margin-bottom: 10px;">
+                    <strong th:text="${currentCustomer.fullName}"></strong><br>
+                    <span style="color: #666;" th:text="'Телефон: ' + ${currentCustomer.phoneNumber}"></span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="customerId">Клиент *</label>
+                <select id="customerId" name="customerId" required>
+                    <option value="">-- Выберите клиента --</option>
+                    <option th:each="customer : ${customers}" 
+                            th:value="${customer.phoneNumber}" 
+                            th:selected="${currentCustomer != null and currentCustomer.phoneNumber == customer.phoneNumber}"
+                            th:text="${customer.fullName + ' (тел: ' + customer.phoneNumber + ')'}">
+                    </option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="address">Адрес выполнения работ *</label>
+                <textarea id="address" name="address" required th:text="${request.address}"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label for="status">Статус *</label>
+                <select id="status" name="status" required>
+                    <option value="new" th:selected="${request.status == 'new'}">Новая</option>
+                    <option value="assigned" th:selected="${request.status == 'assigned'}">Назначена</option>
+                    <option value="in_progress" th:selected="${request.status == 'in_progress'}">В работе</option>
+                    <option value="completed" th:selected="${request.status == 'completed'}">Завершена</option>
+                    <option value="canceled" th:selected="${request.status == 'canceled'}">Отменена</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="engineerId">Инженер</label>
+                <select id="engineerId" name="engineerId">
+                    <option value="">-- Не назначен --</option>
+                    <option th:each="engineer : ${engineers}" 
+                            th:value="${engineer.id}" 
+                            th:selected="${request.engineer != null and request.engineer.id == engineer.id}"
+                            th:text="${engineer.fullName != null ? engineer.fullName : engineer.login}">
+                    </option>
+                </select>
+            </div>
+            
+            <button type="submit" class="btn">Сохранить изменения</button>
+            <a th:href="@{/requests/{id}(id=${request.id})}" class="btn btn-secondary" style="text-decoration: none; display: inline-block;">Отмена</a>
+        </form>
+    </div>
+</body>
+</html>
+

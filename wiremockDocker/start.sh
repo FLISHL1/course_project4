@@ -1,0 +1,1 @@
+docker run -it --rm -p 8080:8080 --name wiremock -v $PWD/mappings:/home/wiremock --env WIREMOCK_OPTIONS="--global-response-templating" wiremock/wiremock:3.13.2

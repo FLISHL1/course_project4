@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список заявок - ServiceRoute</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        td.phone-cell {
+            white-space: nowrap;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-new { background-color: #2196F3; color: white; }
+        .badge-assigned { background-color: #FF9800; color: white; }
+        .badge-in_progress { background-color: #9C27B0; color: white; }
+        .badge-completed { background-color: #4CAF50; color: white; }
+        .badge-canceled { background-color: #f44336; color: white; }
+        .link-btn {
+            padding: 5px 10px;
+            background-color: #2196F3;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        .link-btn:hover {
+            background-color: #0b7dda;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a th:href="@{/}" class="btn">← На главную</a>
+        <a th:href="@{/requests/new}" class="btn" style="margin-left: 10px;">+ Создать заявку</a>
+        
+        <h1>Список заявок</h1>
+        
+        <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-error" th:text="${errorMessage}"></div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Клиент</th>
+                    <th>Телефон</th>
+                    <th>Адрес</th>
+                    <th>Статус</th>
+                    <th>Инженер</th>
+                    <th>Дата создания</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="request : ${requests}">
+                    <td th:text="${request.id}"></td>
+                    <td>
+                        <span th:if="${requestIdToCustomerMap != null and requestIdToCustomerMap.containsKey(request.id)}" 
+                              th:text="${requestIdToCustomerMap.get(request.id).fullName}"></span>
+                        <span th:if="${requestIdToCustomerMap == null or !requestIdToCustomerMap.containsKey(request.id)}" 
+                              style="color: #999;" th:text="${request.customerId}"></span>
+                    </td>
+                    <td class="phone-cell">
+                        <span th:if="${requestIdToCustomerMap != null and requestIdToCustomerMap.containsKey(request.id)}" 
+                              th:text="${requestIdToCustomerMap.get(request.id).phoneNumber}"></span>
+                        <span th:if="${requestIdToCustomerMap == null or !requestIdToCustomerMap.containsKey(request.id)}" 
+                              style="color: #999;" th:text="${request.customerId}"></span>
+                    </td>
+                    <td th:text="${request.address}"></td>
+                    <td>
+                        <span th:classappend="'badge badge-' + ${request.status}">
+                            <span th:if="${request.status == 'new'}">Новая</span>
+                            <span th:if="${request.status == 'assigned'}">Назначена</span>
+                            <span th:if="${request.status == 'in_progress'}">В работе</span>
+                            <span th:if="${request.status == 'completed'}">Завершена</span>
+                            <span th:if="${request.status == 'canceled'}">Отменена</span>
+                        </span>
+                    </td>
+                    <td>
+                        <span th:if="${request.engineer != null}" 
+                              th:text="${request.engineer.fullName != null ? request.engineer.fullName : request.engineer.login}"></span>
+                        <span th:if="${request.engineer == null}" style="color: #999;">—</span>
+                    </td>
+                    <td th:text="${#temporals.format(request.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+                    <td>
+                        <a th:href="@{/requests/{id}(id=${request.id})}" class="link-btn">Просмотр</a>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(requests)}">
+                    <td colspan="9" style="text-align: center; color: #999; padding: 20px;">
+                        Заявки отсутствуют
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+

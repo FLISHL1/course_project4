@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Завершить заявку и отправить в 1C - ServiceRoute</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #FF9800;
+            padding-bottom: 10px;
+        }
+        .info-box {
+            background-color: #fff3cd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .item-row {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            background-color: white;
+            position: relative;
+        }
+        .item-row .form-group {
+            margin: 10px 0;
+        }
+        .remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .remove-btn:hover {
+            background-color: #da190b;
+        }
+        .add-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px 15px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .add-btn:hover {
+            background-color: #0b7dda;
+        }
+        .btn {
+            padding: 12px 30px;
+            background-color: #FF9800;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background-color: #F57C00;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #2196F3;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .price-display {
+            padding: 8px;
+            background-color: #e7f3ff;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+        .total-display {
+            padding: 8px;
+            background-color: #d4edda;
+            border-radius: 5px;
+            font-weight: bold;
+            color: #155724;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a th:href="@{/requests/{id}(id=${request.id})}" class="back-link">← Назад к заявке</a>
+        
+        <h1>Завершить заявку #<span th:text="${request.id}"></span> и отправить в 1C</h1>
+        
+        <div class="info-box">
+            <strong>⚠️ Внимание:</strong> После завершения заявки и отправки заказа в 1C, статус заявки изменится на "Завершена". 
+            Убедитесь, что все данные заполнены корректно.
+        </div>
+        
+        <div class="info-box" style="background-color: #e7f3ff; border-left-color: #2196F3;">
+            <strong>Клиент:</strong> 
+            <span th:if="${customer != null}" th:text="${customer.fullName}"></span>
+            <span th:if="${customer == null}" th:text="${request.customerId}"></span><br>
+            <strong>Телефон:</strong> 
+            <span th:if="${customer != null && customer.phoneNumber != null}" th:text="${customer.phoneNumber}"></span>
+            <span th:if="${customer == null || (customer != null && customer.phoneNumber == null)}" th:text="${request.customerId}"></span><br>
+            <strong>Адрес:</strong> <span th:text="${request.address}"></span>
+        </div>
+        
+        <form th:action="@{/requests/{id}/complete(id=${request.id})}" method="post" id="orderForm">
+            <div class="form-group">
+                <label for="sourceOrderId">Идентификатор заказа в системе-источнике *</label>
+                <input type="text" id="sourceOrderId" name="sourceOrderId" 
+                       th:value="'SR-' + ${request.id}" 
+                       required>
+            </div>
+            
+            <div class="form-group">
+                <label for="paymentMethod">Метод оплаты *</label>
+                <select id="paymentMethod" name="paymentMethod" required>
+                    <option value="">-- Выберите метод оплаты --</option>
+                    <option value="cash">Наличными</option>
+                    <option value="card">По карте</option>
+                    <option value="transfer">Переводом</option>
+                </select>
+            </div>
+            
+            <div class="section">
+                <h2>Услуги *</h2>
+                <p style="color: #666; font-size: 14px;">Необходимо указать хотя бы одну услугу</p>
+                <div id="servicesContainer">
+                    <!-- Услуги будут добавляться динамически -->
+                </div>
+                <button type="button" class="add-btn" onclick="addServiceRow()">+ Добавить услугу</button>
+            </div>
+            
+            <div class="section" style="border-left-color: #FF9800;">
+                <h2 style="color: #FF9800;">Материалы (зарезервированные запчасти)</h2>
+                <p style="color: #666; font-size: 14px;">Укажите количество использованных запчастей. Неиспользованные запчасти будут возвращены на склад. Вы можете добавить новые материалы или удалить существующие.</p>
+                <div id="reservePartsContainer">
+                    <!-- Зарезервированные запчасти будут добавляться динамически -->
+                </div>
+                <button type="button" class="add-btn" onclick="addNewPartRow()">+ Добавить новый материал</button>
+            </div>
+            
+            <button type="submit" class="btn">✅ Завершить заявку и отправить в 1C</button>
+        </form>
+    </div>
+    
+    <script th:inline="javascript">
+        // Данные для JavaScript
+        const services = /*[[${services}]]*/ [];
+        const reserveParts = /*[[${reserveParts}]]*/ [];
+        const availableParts = /*[[${availableParts}]]*/ []; // Только материалы для резервирования
+        
+        let serviceCounter = 0;
+        let newPartCounter = 0;
+        
+        function addServiceRow() {
+            const container = document.getElementById('servicesContainer');
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.id = 'service-row-' + serviceCounter;
+            
+            const serviceOptions = services.map(s => 
+                `<option value="${s.id}" data-price="${s.price || 0}">${s.name}${s.price ? ' - ' + s.price + ' руб.' : ' (цена не установлена)'}</option>`
+            ).join('');
+            
+            row.innerHTML = `
+                <button type="button" class="remove-btn" onclick="removeRow('service-row-${serviceCounter}')">✕ Удалить</button>
+                <div class="form-group">
+                    <label>Номенклатура услуги:</label>
+                    <select name="serviceIds" onchange="updateServicePrice(${serviceCounter})" required>
+                        <option value="">-- Выберите услугу --</option>
+                        ${serviceOptions}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Количество:</label>
+                    <input type="number" name="serviceQuantities" step="1" min="1" value="1"
+                           onchange="updateServiceTotal(${serviceCounter})" required>
+                </div>
+                <div class="form-group">
+                    <label>Цена за единицу (из 1C):</label>
+                    <div id="service-price-${serviceCounter}" class="price-display">Выберите услугу</div>
+                </div>
+                <div class="form-group">
+                    <label>Итого:</label>
+                    <div id="service-total-${serviceCounter}" class="total-display">0.00 руб.</div>
+                </div>
+            `;
+            
+            container.appendChild(row);
+            serviceCounter++;
+        }
+        
+        function removeRow(rowId) {
+            const row = document.getElementById(rowId);
+            if (row) {
+                row.remove();
+            }
+        }
+        
+        function updateServicePrice(index) {
+            const row = document.getElementById('service-row-' + index);
+            if (!row) return;
+            
+            const select = row.querySelector('select[name="serviceIds"]');
+            const priceDisplay = document.getElementById('service-price-' + index);
+            const selectedOption = select.options[select.selectedIndex];
+            
+            if (selectedOption.value) {
+                const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+                if (price > 0) {
+                    priceDisplay.textContent = price.toFixed(2) + ' руб.';
+                    priceDisplay.style.backgroundColor = '#d4edda';
+                    priceDisplay.style.color = '#155724';
+                } else {
+                    priceDisplay.textContent = 'Цена не установлена в 1C';
+                    priceDisplay.style.backgroundColor = '#f8d7da';
+                    priceDisplay.style.color = '#721c24';
+                }
+            } else {
+                priceDisplay.textContent = 'Выберите услугу';
+                priceDisplay.style.backgroundColor = '#e7f3ff';
+                priceDisplay.style.color = '#000';
+            }
+            updateServiceTotal(index);
+        }
+        
+        function updateServiceTotal(index) {
+            const row = document.getElementById('service-row-' + index);
+            if (!row) return;
+            
+            const select = row.querySelector('select[name="serviceIds"]');
+            const quantityInput = row.querySelector('input[name="serviceQuantities"]');
+            const totalDisplay = document.getElementById('service-total-' + index);
+            const selectedOption = select.options[select.selectedIndex];
+            
+            if (selectedOption.value) {
+                const price = parseFloat(selectedOption.getAttribute('data-price')) || 0;
+                const quantity = parseFloat(quantityInput.value) || 0;
+                const total = price * quantity;
+                totalDisplay.textContent = total.toFixed(2) + ' руб.';
+            } else {
+                totalDisplay.textContent = '0.00 руб.';
+            }
+        }
+        
+        function addReservePartRow(reservePart) {
+            const container = document.getElementById('reservePartsContainer');
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.id = 'reserve-part-row-' + reservePart.id;
+            
+            row.innerHTML = `
+                <input type="hidden" name="reservePartIds" value="${reservePart.id}">
+                <button type="button" class="remove-btn" onclick="removeReservePart('reserve-part-row-${reservePart.id}', ${reservePart.id})">✕ Удалить</button>
+                <div class="form-group">
+                    <label>Материал (запчасть):</label>
+                    <input type="text" value="${reservePart.part ? reservePart.part.name : 'N/A'}" readonly 
+                           style="background-color: #f5f5f5; cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>Зарезервировано:</label>
+                    <input type="number" value="${reservePart.quantity}" readonly 
+                           style="background-color: #f5f5f5; cursor: not-allowed;">
+                </div>
+                <div class="form-group">
+                    <label>Использовано *:</label>
+                    <input type="number" name="usedQuantities" min="0" 
+                           max="${reservePart.quantity}" 
+                           value="${reservePart.usedQuantity != null ? reservePart.usedQuantity : 1}"
+                           required>
+                    <div style="font-size: 12px; color: #666; margin-top: 5px;">
+                        Остаток: <span id="remaining-${reservePart.id}">${reservePart.quantity - (reservePart.usedQuantity != null ? reservePart.usedQuantity : 0)}</span>
+                    </div>
+                </div>
+            `;
+            
+            // Добавляем обработчик для обновления остатка
+            const usedInput = row.querySelector('input[name="usedQuantities"]');
+            usedInput.addEventListener('input', function() {
+                const used = parseInt(this.value) || 0;
+                const reserved = reservePart.quantity;
+                const remaining = reserved - used;
+                document.getElementById('remaining-' + reservePart.id).textContent = remaining;
+            });
+            
+            container.appendChild(row);
+        }
+        
+        function removeReservePart(rowId, reservePartId) {
+            const row = document.getElementById(rowId);
+            if (row) {
+                // Добавляем скрытое поле для удаления
+                const form = document.getElementById('orderForm');
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.name = 'removeReservePartIds';
+                hiddenInput.value = reservePartId;
+                form.appendChild(hiddenInput);
+                row.remove();
+            }
+        }
+        
+        function addNewPartRow() {
+            const container = document.getElementById('reservePartsContainer');
+            const row = document.createElement('div');
+            row.className = 'item-row';
+            row.id = 'new-part-row-' + newPartCounter;
+            
+            const partOptions = availableParts.map(p => 
+                `<option value="${p.id}">${p.name}${p.quantity != null ? ' (остаток: ' + p.quantity + ')' : ''}${p.price ? ' - ' + p.price + ' руб.' : ''}</option>`
+            ).join('');
+            
+            row.innerHTML = `
+                <button type="button" class="remove-btn" onclick="removeRow('new-part-row-${newPartCounter}')">✕ Удалить</button>
+                <div class="form-group">
+                    <label>Материал (запчасть):</label>
+                    <select name="newPartIds" required>
+                        <option value="">-- Выберите материал --</option>
+                        ${partOptions}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Количество (использовано):</label>
+                    <input type="number" name="newPartQuantities" min="1" value="1" required>
+                </div>
+            `;
+            
+            container.appendChild(row);
+            newPartCounter++;
+        }
+        
+        // Инициализация: добавляем по одной строке для услуг и загружаем зарезервированные запчасти
+        window.onload = function() {
+            addServiceRow();
+            
+            // Загружаем зарезервированные запчасти (материалы)
+            if (reserveParts && reserveParts.length > 0) {
+                reserveParts.forEach(function(reservePart) {
+                    addReservePartRow(reservePart);
+                });
+            }
+        };
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Контрагенты - ServiceRoute</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .sync-form {
+            margin: 20px 0;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .btn:hover {
+            background-color: #0b7dda;
+        }
+        .message {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #2196F3;
+            text-decoration: none;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a th:href="@{/}" class="back-link">← На главную</a>
+        
+        <h1>Клиенты (физ лица)</h1>
+        
+        <div th:if="${successMessage}" class="message success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="message error" th:text="${errorMessage}"></div>
+        
+        <div style="margin: 20px 0; padding: 20px; background-color: #f9f9f9; border-radius: 5px;">
+            <h2 style="margin-top: 0; color: #333; font-size: 18px;">Создать нового клиента</h2>
+            <form th:action="@{/customers/create}" method="post" style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="fullName" style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">ФИО *</label>
+                    <input type="text" id="fullName" name="fullName" required 
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box;"
+                           placeholder="Введите ФИО клиента">
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="phoneNumber" style="display: block; margin-bottom: 5px; font-weight: bold; color: #555;">Телефон *</label>
+                    <input type="text" id="phoneNumber" name="phoneNumber" required 
+                           style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box;"
+                           placeholder="Введите номер телефона">
+                </div>
+                <div>
+                    <button type="submit" class="btn" style="margin-top: 0;">Создать клиента</button>
+                </div>
+            </form>
+        </div>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>ФИО</th>
+                    <th>Телефон</th>
+                    <th>Дата создания</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:if="${#lists.isEmpty(customerList)}">
+                    <td colspan="4" style="text-align: center; color: #999;">
+                        Клиенты не найдены.
+                    </td>
+                </tr>
+                <tr th:each="customer : ${customerList}">
+                    <td th:text="${customer.id}"></td>
+                    <td th:text="${customer.fullName}"></td>
+                    <td th:text="${customer.phoneNumber}"></td>
+                    <td th:text="${#temporals.format(customer.createdAt, 'dd.MM.yyyy HH:mm')}"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
+

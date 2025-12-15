@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:sec="http://www.thymeleaf.org/extensions/springsecurity" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Заявка #<span th:text="${request.id}"></span> - ServiceRoute</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .info-section {
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .info-row {
+            margin: 10px 0;
+            display: flex;
+        }
+        .info-label {
+            font-weight: bold;
+            width: 200px;
+            color: #555;
+        }
+        .info-value {
+            flex: 1;
+        }
+        .badge {
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-new { background-color: #2196F3; color: white; }
+        .badge-assigned { background-color: #FF9800; color: white; }
+        .badge-in_progress { background-color: #9C27B0; color: white; }
+        .badge-completed { background-color: #4CAF50; color: white; }
+        .badge-canceled { background-color: #f44336; color: white; }
+        .btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 10px;
+            display: inline-block;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-edit {
+            background-color: #2196F3;
+        }
+        .btn-edit:hover {
+            background-color: #0b7dda;
+        }
+        .btn-complete {
+            background-color: #FF9800;
+        }
+        .btn-complete:hover {
+            background-color: #F57C00;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .parts-section {
+            margin-top: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+            font-weight: bold;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a th:href="@{/requests}" style="color: #2196F3; text-decoration: none;">← Назад к списку заявок</a>
+        
+        <h1>Заявка #<span th:text="${request.id}"></span></h1>
+        
+        <div th:if="${successMessage}" class="alert alert-success" th:text="${successMessage}"></div>
+        <div th:if="${errorMessage}" class="alert alert-error" th:text="${errorMessage}"></div>
+        
+        <div class="info-section">
+            <h2 style="margin-top: 0; color: #4CAF50;">Информация о заявке</h2>
+            
+            <div class="info-row">
+                <div class="info-label">Статус:</div>
+                <div class="info-value">
+                    <span th:classappend="'badge badge-' + ${request.status}">
+                        <span th:if="${request.status == 'new'}">Новая</span>
+                        <span th:if="${request.status == 'assigned'}">Назначена</span>
+                        <span th:if="${request.status == 'in_progress'}">В работе</span>
+                        <span th:if="${request.status == 'completed'}">Завершена</span>
+                        <span th:if="${request.status == 'canceled'}">Отменена</span>
+                    </span>
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">Клиент:</div>
+                <div class="info-value">
+                    <span th:if="${customer != null}" th:text="${customer.fullName}"></span>
+                    <span th:if="${customer == null}" style="color: #999;" th:text="${request.customerId}"></span>
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">Телефон клиента:</div>
+                <div class="info-value">
+                    <span th:if="${customer != null && customer.phoneNumber != null}" th:text="${customer.phoneNumber}"></span>
+                    <span th:if="${customer == null || (customer != null && customer.phoneNumber == null)}" style="color: #999;" th:text="${request.customerId}"></span>
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">Адрес выполнения:</div>
+                <div class="info-value" th:text="${request.address}"></div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">Инженер:</div>
+                <div class="info-value">
+                    <span th:if="${request.engineer != null}" 
+                          th:text="${request.engineer.fullName != null ? request.engineer.fullName : request.engineer.login}"></span>
+                    <span th:if="${request.engineer == null}" style="color: #999;">не назначен</span>
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">Дата создания:</div>
+                <div class="info-value" th:text="${#temporals.format(request.createdAt, 'dd.MM.yyyy HH:mm')}"></div>
+            </div>
+            
+            <div class="info-row" th:if="${request.updatedAt != null}">
+                <div class="info-label">Последнее обновление:</div>
+                <div class="info-value" th:text="${#temporals.format(request.updatedAt, 'dd.MM.yyyy HH:mm')}"></div>
+            </div>
+        </div>
+        
+        <div class="parts-section" th:if="${reserveParts != null and !reserveParts.isEmpty()}">
+            <h2 style="color: #4CAF50;">Зарезервированные запчасти</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Запчасть</th>
+                        <th>Количество</th>
+                        <th>Использовано</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="part : ${reserveParts}">
+                        <td th:text="${part.part != null ? part.part.name : 'N/A'}"></td>
+                        <td th:text="${part.quantity}"></td>
+                        <td th:text="${part.usedQuantity != null ? part.usedQuantity : 0}"></td>
+                        <td>
+                            <span th:classappend="'badge badge-' + ${part.status}" th:text="${part.status}"></span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="parts-section" th:if="${reserveParts == null or reserveParts.isEmpty()}">
+            <h2 style="color: #4CAF50;">Зарезервированные запчасти</h2>
+            <div class="empty-state">Запчасти не зарезервированы</div>
+        </div>
+        
+        <div style="margin-top: 30px;">
+            <a th:href="@{/requests}" class="btn btn-secondary" style="text-decoration: none;">Назад к списку</a>
+            
+            <a th:if="${canEdit}" 
+               th:href="@{/requests/{id}/edit(id=${request.id})}" 
+               class="btn btn-edit" 
+               style="text-decoration: none;">Редактировать</a>
+            
+            <!-- Кнопки последовательного перехода по статусам -->
+            <!-- new -> assigned -->
+            <form th:if="${canEdit and request.status == 'new'}" 
+                  th:action="@{/requests/{id}/assign(id=${request.id})}" 
+                  method="post" 
+                  style="display: inline;">
+                <select name="engineerId" required style="padding: 8px; margin-right: 10px; border-radius: 5px; border: 1px solid #ddd;">
+                    <option value="">-- Выберите инженера --</option>
+                    <option th:each="engineer : ${engineers}" 
+                            th:value="${engineer.id}" 
+                            th:text="${engineer.fullName != null ? engineer.fullName : engineer.login}">
+                    </option>
+                </select>
+                <button type="submit" class="btn" style="background-color: #2196F3;">Назначить инженеру</button>
+            </form>
+            
+            <!-- assigned -> in_progress -->
+            <form th:if="${canComplete and request.status == 'assigned'}" 
+                  th:action="@{/requests/{id}/start(id=${request.id})}" 
+                  method="post" 
+                  style="display: inline;">
+                <button type="submit" class="btn" style="background-color: #9C27B0;">Начать работу</button>
+            </form>
+            
+            <!-- Кнопка резервирования запчастей для assigned и in_progress -->
+            <a th:if="${canComplete and (request.status == 'assigned' or request.status == 'in_progress')}" 
+               th:href="@{/requests/{id}/reserve-parts(id=${request.id})}" 
+               class="btn" 
+               style="background-color: #2196F3; text-decoration: none; margin-left: 10px;">Зарезервировать запчасти</a>
+            
+            <!-- in_progress -> completed (с заполнением заказа) -->
+            <a th:if="${canComplete and request.status == 'in_progress'}" 
+               th:href="@{/requests/{id}/complete-form(id=${request.id})}" 
+               class="btn btn-complete" 
+               style="text-decoration: none;">Завершить заявку и отправить в 1C</a>
+            
+            <!-- Отмена заявки -->
+            <form th:if="${canEdit and request.status != 'completed' and request.status != 'canceled'}" 
+                  th:action="@{/requests/{id}/cancel(id=${request.id})}" 
+                  method="post" 
+                  style="display: inline;">
+                <button type="submit" class="btn" style="background-color: #f44336;" 
+                        onclick="return confirm('Вы уверены, что хотите отменить заявку?')">Отменить заявку</button>
+            </form>
+            
+            <div style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px;">
+                <p style="margin: 0; color: #856404;">
+                    <strong>Примечание:</strong> Заказы отправляются в 1C и не хранятся в локальной БД. 
+                    После создания заказа информация о нем доступна только в системе 1C.
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+

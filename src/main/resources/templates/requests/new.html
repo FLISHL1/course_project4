@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <title>Создать заявку - ServiceRoute</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin: 20px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+        .btn {
+            padding: 12px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 20px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            margin-left: 10px;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info-text {
+            color: #666;
+            font-size: 14px;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .create-customer-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .create-customer-toggle {
+            background-color: #2196F3;
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .create-customer-toggle:hover {
+            background-color: #0b7dda;
+        }
+        .create-customer-form {
+            display: none;
+            margin-top: 15px;
+        }
+        .create-customer-form.show {
+            display: block;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+        .form-row .form-group {
+            flex: 1;
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a th:href="@{/requests}" style="color: #2196F3; text-decoration: none;">← Назад к списку заявок</a>
+        
+        <h1>Создать новую заявку</h1>
+        
+        <div th:if="${errorMessage}" class="alert alert-error" th:text="${errorMessage}"></div>
+        <div th:if="${successMessage}" class="alert" style="background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;" th:text="${successMessage}"></div>
+        
+        <form th:action="@{/requests/create}" method="post" id="requestForm">
+            <div class="form-group">
+                <label for="customerId">Клиент *</label>
+                <select id="customerId" name="customerId" required>
+                    <option value="">-- Выберите клиента --</option>
+                    <option th:each="customer : ${customers}" 
+                            th:value="${customer.id}" 
+                            th:selected="${selectedCustomerId != null and selectedCustomerId == customer.id}"
+                            th:text="${customer.fullName + ' (тел: ' + customer.phoneNumber + ')'}">
+                    </option>
+                </select>
+                <div class="info-text">Если клиента нет в списке, создайте нового клиента ниже</div>
+            </div>
+            
+            <div class="create-customer-section">
+                <button type="button" class="create-customer-toggle" onclick="toggleCreateCustomerForm()">
+                    + Создать нового клиента
+                </button>
+                <div class="create-customer-form" id="createCustomerForm">
+                    <h3 style="margin-top: 0; color: #333; font-size: 16px;">Новый клиент</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="newCustomerFullName">ФИО *</label>
+                            <input type="text" id="newCustomerFullName" 
+                                   placeholder="Введите ФИО клиента"
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                        <div class="form-group">
+                            <label for="newCustomerPhoneNumber">Телефон *</label>
+                            <input type="text" id="newCustomerPhoneNumber" 
+                                   placeholder="Введите номер телефона"
+                                   style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box;">
+                        </div>
+                    </div>
+                    <button type="button" class="btn" onclick="createCustomerAndSelect()" style="margin-top: 0;">
+                        Создать и выбрать
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="toggleCreateCustomerForm()" style="margin-top: 0;">
+                        Отмена
+                    </button>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="address">Адрес выполнения работ *</label>
+                <textarea id="address" name="address" 
+                          placeholder="Укажите адрес выполнения работ (выездная/на месте)" 
+                          required></textarea>
+                <div class="info-text">Укажите адрес для выездной работы или "На месте" для работ в сервисе</div>
+            </div>
+            
+            <button type="submit" class="btn">Создать заявку</button>
+            <a th:href="@{/requests}" class="btn btn-secondary" style="text-decoration: none; display: inline-block;">Отмена</a>
+        </form>
+    </div>
+    
+    <script>
+        function toggleCreateCustomerForm() {
+            const form = document.getElementById('createCustomerForm');
+            form.classList.toggle('show');
+        }
+        
+        function createCustomerAndSelect() {
+            const fullName = document.getElementById('newCustomerFullName').value.trim();
+            const phoneNumber = document.getElementById('newCustomerPhoneNumber').value.trim();
+            
+            if (!fullName || !phoneNumber) {
+                alert('Пожалуйста, заполните все поля');
+                return;
+            }
+            
+            // Получаем CSRF токен из мета-тега
+            const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
+            
+            // Создаем форму для отправки запроса на создание клиента
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/customers/create';
+            
+            const fullNameInput = document.createElement('input');
+            fullNameInput.type = 'hidden';
+            fullNameInput.name = 'fullName';
+            fullNameInput.value = fullName;
+            form.appendChild(fullNameInput);
+            
+            const phoneNumberInput = document.createElement('input');
+            phoneNumberInput.type = 'hidden';
+            phoneNumberInput.name = 'phoneNumber';
+            phoneNumberInput.value = phoneNumber;
+            form.appendChild(phoneNumberInput);
+            
+            // Добавляем скрытое поле для редиректа обратно на форму создания заявки
+            const redirectInput = document.createElement('input');
+            redirectInput.type = 'hidden';
+            redirectInput.name = 'redirectTo';
+            redirectInput.value = '/requests/new';
+            form.appendChild(redirectInput);
+            
+            // Добавляем CSRF токен
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = '_csrf';
+            csrfInput.value = csrfToken;
+            form.appendChild(csrfInput);
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    </script>
+</body>
+</html>
+

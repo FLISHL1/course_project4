@@ -1,0 +1,227 @@
+openapi: 3.0.0
+info:
+  title: "API интеграции ServiceRoute и 1С:Бухгалтерия"
+  description: |
+    API, предоставляемый системой "1С:Бухгалтерия" для двустороннего взаимодействия с системой "ServiceRoute".
+
+    **Основные сценарии:**
+    1.  **Получение справочных данных из 1С (GET):** ServiceRoute запрашивает актуальные списки номенклатуры (услуг, запчастей) и контрагентов, чтобы использовать корректные идентификаторы.
+    2.  **Передача данных о выполненных заказах в 1С (POST):** ServiceRoute отправляет данные о выполненной услуге и списанных материалах, а 1С на их основе создает и проводит документ "Акт выполненных работ".
+  version: "1.1.0"
+  contact:
+    name: "Отдел разработки"
+    email: "dev@example.com"
+
+servers:
+  - url: https://1c-api.your-company.com/buh/hs/integration/v1
+    description: "Production сервер 1С"
+
+tags:
+  - name: "Справочные данные (НСИ)"
+    description: "Операции для получения справочных данных из 1С (номенклатура, контрагенты)."
+  - name: "Финансовые документы"
+    description: "Операции для создания финансовых документов на основе данных из ServiceRoute."
+
+paths:
+  /nomenclature:
+    get:
+      tags:
+        - "Справочные данные (НСИ)"
+      summary: "Получить список номенклатуры (услуги, материалы)"
+      description: |
+        Возвращает список номенклатуры из 1С. Можно фильтровать по типу (услуга/материал) и искать по наименованию.
+        ServiceRoute должна использовать этот метод для синхронизации своего справочника и получения корректных `nomenclatureId`.
+      operationId: getNomenclature
+      parameters:
+        - name: type
+          in: query
+          description: "Фильтр по типу номенклатуры."
+          schema:
+            type: string
+            enum: [service, material]
+        - name: search
+          in: query
+          description: "Текстовая строка для поиска по наименованию или артикулу."
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "Успешный ответ со списком номенклатуры."
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NomenclatureItem'
+        '401':
+          description: "Ошибка аутентификации."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /completed-orders:
+    post:
+      tags:
+        - "Финансовые документы"
+      summary: "Создать документ 'Акт выполненных работ' в 1С"
+      description: |
+        Метод принимает данные о выполненном заказе из системы ServiceRoute, на основе которых в 1С:Бухгалтерия создается 
+        и проводится документ "Акт выполненных работ" или "Реализация (акты, накладные)".
+        Идентификаторы номенклатуры (`nomenclatureId`) и ИНН клиента (`taxId`) должны быть предварительно верифицированы через GET-запросы к этому API.
+      operationId: createCompletedOrderDocument
+      requestBody:
+        description: "Полные данные о выполненном заказе для отражения в бухгалтерском учете."
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompletedOrderPayload'
+      responses:
+        '201':
+          description: "Документ 'Акт выполненных работ' успешно создан и проведен в 1С."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: |
+            Ошибка в данных запроса. Например:
+            - Не заполнены обязательные поля.
+            - Номенклатура с указанным ID не найдена в 1С.
+            - Контрагент с указанным ИНН не найден.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: "Ошибка аутентификации. Неверный или отсутствующий API-ключ."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: "Внутренняя ошибка сервера 1С. Например, не удалось провести документ из-за проблем с остатками или счетами учета."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    # --- Схемы для GET-запросов (справочники) ---
+    NomenclatureItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: "Уникальный идентификатор (Код или GUID) номенклатуры в 1С."
+        name:
+          type: string
+          description: "Полное наименование номенклатуры."
+        article:
+          type: string
+          description: "Артикул (для товаров и материалов)."
+        type:
+          type: string
+          description: "Тип номенклатуры."
+          enum: [service, material]
+        unit:
+          type: string
+          description: "Единица измерения (например, шт, час)."
+
+    # --- Схемы для POST-запроса (создание документа) ---
+    CompletedOrderPayload:
+      type: object
+      description: "Тело запроса с данными о выполненном заказе."
+      required:
+        - sourceOrderId
+        - completionDate
+        - customerTaxId
+        - services
+        - paymentMethod
+      properties:
+        sourceOrderId:
+          type: string
+          description: "Уникальный идентификатор заказа в системе-источнике (ServiceRoute)."
+        completionDate:
+          type: string
+          format: date-time
+          description: "Дата и время завершения работ по заказу."
+        customerTaxId:
+          type: string
+          description: "ИНН контрагента. Должен существовать в 1С."
+        paymentMethod:
+          type: string
+          description: "Метод оплаты заказа."
+          enum: [cash, card, transfer]
+          example: "card"
+        services:
+          type: array
+          description: "Список оказанных услуг."
+          items:
+            $ref: '#/components/schemas/CompletedOrderItem'
+        materials:
+          type: array
+          description: "Список использованных материалов (запчастей), которые нужно списать со склада."
+          items:
+            $ref: '#/components/schemas/CompletedOrderItem'
+
+    CompletedOrderItem:
+      type: object
+      required:
+        - nomenclatureId
+        - quantity
+        - totalPrice
+      properties:
+        nomenclatureId:
+          type: string
+          description: "Уникальный идентификатор (Код или GUID) номенклатуры в 1С. Получается из GET /nomenclature."
+        quantity:
+          type: number
+          format: double
+          description: "Количество."
+        pricePerUnit:
+          type: number
+          format: double
+          description: "Цена за единицу."
+        totalPrice:
+          type: number
+          format: double
+          description: "Общая стоимость (количество * цена)."
+
+    # --- Общие схемы ответов ---
+    SuccessResponse:
+      type: object
+      properties:
+        document1cId:
+          type: string
+          description: "Уникальный идентификатор (GUID) созданного документа в 1С."
+        document1cNumber:
+          type: string
+          description: "Номер созданного документа в 1С."
+        message:
+          type: string
+          example: "Документ 'Реализация (акт, накладная) БП-000123' успешно создан и проведен."
+
+    ErrorResponse:
+      type: object
+      properties:
+        errorCode:
+          type: string
+          description: "Код ошибки для программной обработки."
+          example: "CUSTOMER_NOT_FOUND"
+        errorMessage:
+          type: string
+          description: "Человекочитаемое описание ошибки."
+          example: "Контрагент с ИНН '7701234567' не найден в справочнике 1С."
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: "API-ключ для аутентификации запроса от ServiceRoute."
+
+security:
+  - ApiKeyAuth: []
