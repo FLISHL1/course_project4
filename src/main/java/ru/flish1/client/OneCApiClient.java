@@ -14,6 +14,7 @@ import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import ru.flish1.dto.CompletedOrderPayload;
 import ru.flish1.dto.NomenclatureDto;
+import ru.flish1.dto.PaymentStatusResponse;
 import ru.flish1.dto.SuccessResponse;
 
 import java.util.List;
@@ -100,6 +101,61 @@ public class OneCApiClient {
         } catch (RestClientException e) {
             log.error("Ошибка при отправке заказа в 1C", e);
             throw new RuntimeException("Не удалось отправить заказ в 1C: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Проверяет статус оплаты документа в 1С
+     *
+     * @param documentId идентификатор документа в 1С
+     * @return ответ с информацией о статусе оплаты
+     */
+    public PaymentStatusResponse checkPaymentStatus(String documentId) {
+        try {
+            String url = baseUrl + "/payment-status/" + documentId;
+            log.info("Проверка статуса оплаты документа в 1C: {}", url);
+
+            HttpEntity<String> entity = new HttpEntity<>(createHeaders());
+            ResponseEntity<PaymentStatusResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    PaymentStatusResponse.class
+            );
+
+            log.info("Статус оплаты документа {}: isPaid={}", documentId, 
+                    response.getBody() != null ? response.getBody().getIsPaid() : "N/A");
+            return response.getBody();
+        } catch (RestClientException e) {
+            log.error("Ошибка при проверке статуса оплаты в 1C", e);
+            throw new RuntimeException("Не удалось проверить статус оплаты в 1C: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Подтверждает наличную оплату документа в 1С
+     *
+     * @param documentId идентификатор документа в 1С
+     * @return ответ с информацией о статусе оплаты
+     */
+    public PaymentStatusResponse confirmCashPayment(String documentId) {
+        try {
+            String url = baseUrl + "/confirm-cash-payment/" + documentId;
+            log.info("Подтверждение наличной оплаты документа в 1C: {}", url);
+
+            HttpEntity<String> entity = new HttpEntity<>(createHeaders());
+            ResponseEntity<PaymentStatusResponse> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    PaymentStatusResponse.class
+            );
+
+            log.info("Наличная оплата документа {} подтверждена в 1C", documentId);
+            return response.getBody();
+        } catch (RestClientException e) {
+            log.error("Ошибка при подтверждении наличной оплаты в 1C", e);
+            throw new RuntimeException("Не удалось подтвердить наличную оплату в 1C: " + e.getMessage(), e);
         }
     }
 }

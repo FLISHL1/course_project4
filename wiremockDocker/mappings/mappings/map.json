@@ -144,22 +144,16 @@
       }
     },
     {
+      "name": "Проверка статуса оплаты документа (оплачен)",
+      "priority": 5,
       "request": {
-        "method": "POST",
-        "urlPath": "/v1/accounting/expenses",
+        "method": "GET",
+        "urlPathPattern": "/buh/hs/integration/v1/payment-status/.*",
         "headers": {
-          "Content-Type": {
-            "equalTo": "application/json"
-          },
-          "Authorization": {
-            "matches": "Bearer .+"
+          "X-API-Key": {
+            "equalTo": "SECRET-API-KEY-FOR-SERVICEROUTE"
           }
-        },
-        "bodyPatterns": [
-          {
-            "matchesJsonPath": "$[?(@.expenseId != null && @.eventName != null && @.clientFullName != null && @.contractorType != null && @.contractorBankAccount != null && @.contractorBik != null && @.approvedAdvance != null && @.actualCost != null)]"
-          }
-        ]
+        }
       },
       "response": {
         "status": 200,
@@ -168,11 +162,70 @@
         },
         "transformers": ["response-template"],
         "jsonBody": {
-          "expenseId": "{{jsonPath request.body '$.expenseId'}}",
-          "sentToAccounting": true,
-          "message": "Информация по статье расходов успешно передана в 1С."
+          "documentId": "{{request.pathSegments.[5]}}",
+          "isPaid": true,
+          "paidAt": "{{now format='yyyy-MM-dd'}}T{{now format='HH:mm:ssZ'}}",
+          "paymentMethod": "card",
+          "message": "Документ оплачен"
+        },
+        "fixedDelayMilliseconds": 200
+      }
+    },
+    {
+      "name": "Проверка статуса оплаты документа (оплачен)",
+      "priority": 7,
+      "request": {
+        "method": "GET",
+        "urlPathPattern": "/buh/hs/integration/v1/payment-status/.*",
+        "headers": {
+          "X-API-Key": {
+            "equalTo": "SECRET-API-KEY-FOR-SERVICEROUTE"
           }
         }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "documentId": "{{request.pathSegments.[5]}}",
+          "isPaid": false,
+          "paidAt": "{{now format='yyyy-MM-dd'}}T{{now format='HH:mm:ssZ'}}",
+          "paymentMethod": "card",
+          "message": "Документ не оплачен"
+        },
+        "fixedDelayMilliseconds": 200
+      }
+    },
+    {
+      "name": "Подтверждение наличной оплаты документа",
+      "priority": 5,
+      "request": {
+        "method": "POST",
+        "urlPathPattern": "/buh/hs/integration/v1/confirm-cash-payment/.*",
+        "headers": {
+          "X-API-Key": {
+            "equalTo": "SECRET-API-KEY-FOR-SERVICEROUTE"
+          }
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "documentId": "{{request.pathSegments.[5]}}",
+          "isPaid": true,
+          "paidAt": "{{now format='yyyy-MM-dd'}}T{{now format='HH:mm:ssZ'}}",
+          "paymentMethod": "cash",
+          "message": "Наличная оплата успешно подтверждена в 1С"
+        },
+        "fixedDelayMilliseconds": 200
+      }
     }
   ]
 }

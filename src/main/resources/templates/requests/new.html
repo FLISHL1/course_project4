@@ -175,6 +175,33 @@
             </div>
             
             <div class="form-group">
+                <label for="equipmentTypeId">Тип оборудования *</label>
+                <select id="equipmentTypeId" name="equipmentTypeId" required onchange="toggleCustomEquipmentType()">
+                    <option value="">-- Выберите тип оборудования --</option>
+                    <option th:each="eqType : ${equipmentTypes}" 
+                            th:value="${eqType.id}" 
+                            th:data-is-other="${eqType.isOther}"
+                            th:text="${eqType.name}">
+                    </option>
+                </select>
+            </div>
+            
+            <div class="form-group" id="customEquipmentTypeGroup" style="display: none;">
+                <label for="customEquipmentType">Укажите тип оборудования *</label>
+                <input type="text" id="customEquipmentType" name="customEquipmentType" 
+                       placeholder="Введите название типа оборудования">
+                <div class="info-text">Укажите точное название типа оборудования</div>
+            </div>
+            
+            <div class="form-group">
+                <label for="problemDescription">Описание проблемы *</label>
+                <textarea id="problemDescription" name="problemDescription" 
+                          placeholder="Опишите проблему клиента подробно" 
+                          required></textarea>
+                <div class="info-text">Подробно опишите проблему, с которой обратился клиент</div>
+            </div>
+            
+            <div class="form-group">
                 <label for="address">Адрес выполнения работ *</label>
                 <textarea id="address" name="address" 
                           placeholder="Укажите адрес выполнения работ (выездная/на месте)" 
@@ -188,6 +215,22 @@
     </div>
     
     <script>
+        function toggleCustomEquipmentType() {
+            const select = document.getElementById('equipmentTypeId');
+            const customGroup = document.getElementById('customEquipmentTypeGroup');
+            const customInput = document.getElementById('customEquipmentType');
+            const selectedOption = select.options[select.selectedIndex];
+            
+            if (selectedOption && selectedOption.dataset.isOther === 'true') {
+                customGroup.style.display = 'block';
+                customInput.required = true;
+            } else {
+                customGroup.style.display = 'none';
+                customInput.required = false;
+                customInput.value = '';
+            }
+        }
+        
         function toggleCreateCustomerForm() {
             const form = document.getElementById('createCustomerForm');
             form.classList.toggle('show');

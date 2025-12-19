@@ -53,6 +53,7 @@
         .badge-assigned { background-color: #FF9800; color: white; }
         .badge-in_progress { background-color: #9C27B0; color: white; }
         .badge-completed { background-color: #4CAF50; color: white; }
+        .badge-paid { background-color: #00796B; color: white; }
         .badge-canceled { background-color: #f44336; color: white; }
         .btn {
             padding: 10px 20px;
@@ -148,8 +149,18 @@
                         <span th:if="${request.status == 'assigned'}">Назначена</span>
                         <span th:if="${request.status == 'in_progress'}">В работе</span>
                         <span th:if="${request.status == 'completed'}">Завершена</span>
+                        <span th:if="${request.status == 'paid'}">Завершена (оплачена)</span>
                         <span th:if="${request.status == 'canceled'}">Отменена</span>
                     </span>
+                </div>
+            </div>
+            
+            <div class="info-row" th:if="${request.paymentMethod != null}">
+                <div class="info-label">Способ оплаты:</div>
+                <div class="info-value">
+                    <span th:if="${request.paymentMethod == 'cash'}">Наличные</span>
+                    <span th:if="${request.paymentMethod == 'card'}">Банковская карта</span>
+                    <span th:if="${request.paymentMethod == 'transfer'}">Безналичный перевод</span>
                 </div>
             </div>
             
@@ -166,6 +177,29 @@
                 <div class="info-value">
                     <span th:if="${customer != null && customer.phoneNumber != null}" th:text="${customer.phoneNumber}"></span>
                     <span th:if="${customer == null || (customer != null && customer.phoneNumber == null)}" style="color: #999;" th:text="${request.customerId}"></span>
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">Тип оборудования:</div>
+                <div class="info-value">
+                    <span th:if="${request.equipmentType != null}">
+                        <span th:if="${request.equipmentType.isOther and request.customEquipmentType != null}" 
+                              th:text="${request.customEquipmentType + ' (Другое)'}"></span>
+                        <span th:if="${!request.equipmentType.isOther or request.customEquipmentType == null}" 
+                              th:text="${request.equipmentType.name}"></span>
+                    </span>
+                    <span th:if="${request.equipmentType == null}" style="color: #999;">не указан</span>
+                </div>
+            </div>
+            
+            <div class="info-row">
+                <div class="info-label">Описание проблемы:</div>
+                <div class="info-value">
+                    <span th:if="${request.problemDescription != null and !request.problemDescription.isEmpty()}" 
+                          th:text="${request.problemDescription}"></span>
+                    <span th:if="${request.problemDescription == null or request.problemDescription.isEmpty()}" 
+                          style="color: #999;">не указано</span>
                 </div>
             </div>
             
@@ -267,8 +301,29 @@
                class="btn btn-complete" 
                style="text-decoration: none;">Завершить заявку и отправить в 1C</a>
             
+            <!-- Кнопка проверки оплаты для безналичных платежей (completed и не наличные) -->
+            <form th:if="${canComplete and request.status == 'completed' and request.paymentMethod != null and request.paymentMethod != 'cash'}" 
+                  th:action="@{/requests/{id}/check-payment(id=${request.id})}" 
+                  method="post" 
+                  style="display: inline;">
+                <button type="submit" class="btn" style="background-color: #00796B;">
+                    Проверить оплату в 1С
+                </button>
+            </form>
+            
+            <!-- Кнопка подтверждения наличной оплаты (completed и наличные) -->
+            <form th:if="${canComplete and request.status == 'completed' and request.paymentMethod == 'cash'}" 
+                  th:action="@{/requests/{id}/confirm-cash-payment(id=${request.id})}" 
+                  method="post" 
+                  style="display: inline;">
+                <button type="submit" class="btn" style="background-color: #00796B;"
+                        onclick="return confirm('Вы подтверждаете получение наличной оплаты от клиента?')">
+                    Подтвердить получение оплаты
+                </button>
+            </form>
+            
             <!-- Отмена заявки -->
-            <form th:if="${canEdit and request.status != 'completed' and request.status != 'canceled'}" 
+            <form th:if="${canEdit and request.status != 'completed' and request.status != 'paid' and request.status != 'canceled'}" 
                   th:action="@{/requests/{id}/cancel(id=${request.id})}" 
                   method="post" 
                   style="display: inline;">

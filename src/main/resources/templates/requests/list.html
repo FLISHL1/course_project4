@@ -66,6 +66,7 @@
         .badge-assigned { background-color: #FF9800; color: white; }
         .badge-in_progress { background-color: #9C27B0; color: white; }
         .badge-completed { background-color: #4CAF50; color: white; }
+        .badge-paid { background-color: #00796B; color: white; }
         .badge-canceled { background-color: #f44336; color: white; }
         .link-btn {
             padding: 5px 10px;
@@ -111,7 +112,8 @@
                     <th>ID</th>
                     <th>Клиент</th>
                     <th>Телефон</th>
-                    <th>Адрес</th>
+                    <th>Тип оборудования</th>
+                    <th>Проблема</th>
                     <th>Статус</th>
                     <th>Инженер</th>
                     <th>Дата создания</th>
@@ -133,13 +135,28 @@
                         <span th:if="${requestIdToCustomerMap == null or !requestIdToCustomerMap.containsKey(request.id)}" 
                               style="color: #999;" th:text="${request.customerId}"></span>
                     </td>
-                    <td th:text="${request.address}"></td>
+                    <td>
+                        <span th:if="${request.equipmentType != null}">
+                            <span th:if="${request.equipmentType.isOther and request.customEquipmentType != null}" 
+                                  th:text="${request.customEquipmentType}"></span>
+                            <span th:if="${!request.equipmentType.isOther or request.customEquipmentType == null}" 
+                                  th:text="${request.equipmentType.name}"></span>
+                        </span>
+                        <span th:if="${request.equipmentType == null}" style="color: #999;">—</span>
+                    </td>
+                    <td>
+                        <span th:if="${request.problemDescription != null and !request.problemDescription.isEmpty()}" 
+                              th:text="${#strings.abbreviate(request.problemDescription, 50)}"></span>
+                        <span th:if="${request.problemDescription == null or request.problemDescription.isEmpty()}" 
+                              style="color: #999;">—</span>
+                    </td>
                     <td>
                         <span th:classappend="'badge badge-' + ${request.status}">
                             <span th:if="${request.status == 'new'}">Новая</span>
                             <span th:if="${request.status == 'assigned'}">Назначена</span>
                             <span th:if="${request.status == 'in_progress'}">В работе</span>
                             <span th:if="${request.status == 'completed'}">Завершена</span>
+                            <span th:if="${request.status == 'paid'}">Оплачена</span>
                             <span th:if="${request.status == 'canceled'}">Отменена</span>
                         </span>
                     </td>

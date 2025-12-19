@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import ru.flish1.entity.Customer;
+import ru.flish1.entity.EquipmentType;
 import ru.flish1.entity.Part;
 import ru.flish1.entity.PartType;
 import ru.flish1.entity.Request;
@@ -20,6 +21,7 @@ import ru.flish1.entity.ReservePart;
 import ru.flish1.entity.ServiceEntity;
 import ru.flish1.entity.User;
 import ru.flish1.repository.CustomerRepository;
+import ru.flish1.repository.EquipmentTypeRepository;
 import ru.flish1.repository.PartRepository;
 import ru.flish1.repository.PartTypeRepository;
 import ru.flish1.repository.ReservePartRepository;
@@ -47,11 +49,13 @@ public class WebController {
     private final PartTypeRepository partTypeRepository;
     private final ReservePartRepository reservePartRepository;
     private final ServiceRepository serviceRepository;
+    private final EquipmentTypeRepository equipmentTypeRepository;
 
     public WebController(CustomerRepository customerRepository,
                          SyncService syncService, RequestService requestService, UserService userService,
                          PartRepository partRepository, PartTypeRepository partTypeRepository,
-                         ReservePartRepository reservePartRepository, ServiceRepository serviceRepository) {
+                         ReservePartRepository reservePartRepository, ServiceRepository serviceRepository,
+                         EquipmentTypeRepository equipmentTypeRepository) {
         this.customerRepository = customerRepository;
         this.syncService = syncService;
         this.requestService = requestService;
@@ -60,6 +64,7 @@ public class WebController {
         this.partTypeRepository = partTypeRepository;
         this.reservePartRepository = reservePartRepository;
         this.serviceRepository = serviceRepository;
+        this.equipmentTypeRepository = equipmentTypeRepository;
     }
 
     /**
@@ -211,7 +216,9 @@ public class WebController {
     @GetMapping("/requests/new")
     public String newRequestForm(Model model) {
         List<Customer> customers = customerRepository.findAll();
+        List<EquipmentType> equipmentTypes = equipmentTypeRepository.findAll();
         model.addAttribute("customers", customers);
+        model.addAttribute("equipmentTypes", equipmentTypes);
         model.addAttribute("request", new Request());
         return "requests/new";
     }
@@ -272,13 +279,20 @@ public class WebController {
 
         List<Customer> customers = customerRepository.findAll();
         List<User> engineers = userService.findAllByRole("ENGINEER");
+        List<EquipmentType> equipmentTypes = equipmentTypeRepository.findAll();
 
         // Получаем текущего клиента заявки (может быть phoneNumber или ID)
         Customer currentCustomer = findCustomerByIdOrPhone(request.getCustomerId()).orElse(null);
 
+        // Инициализируем тип оборудования, если он есть
+        if (request.getEquipmentType() != null) {
+            request.getEquipmentType().getName(); // Инициализируем прокси
+        }
+
         model.addAttribute("request", request);
         model.addAttribute("customers", customers);
         model.addAttribute("engineers", engineers);
+        model.addAttribute("equipmentTypes", equipmentTypes);
         model.addAttribute("currentCustomer", currentCustomer);
 
         return "requests/edit";

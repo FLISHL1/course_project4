@@ -4,8 +4,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.flish1.entity.EquipmentType;
 import ru.flish1.entity.Request;
 import ru.flish1.entity.User;
+import ru.flish1.repository.EquipmentTypeRepository;
 import ru.flish1.repository.RequestRepository;
 import ru.flish1.repository.UserRepository;
 
@@ -22,10 +24,13 @@ public class RequestService {
 
     private final RequestRepository requestRepository;
     private final UserRepository userRepository;
+    private final EquipmentTypeRepository equipmentTypeRepository;
 
-    public RequestService(RequestRepository requestRepository, UserRepository userRepository) {
+    public RequestService(RequestRepository requestRepository, UserRepository userRepository,
+                          EquipmentTypeRepository equipmentTypeRepository) {
         this.requestRepository = requestRepository;
         this.userRepository = userRepository;
+        this.equipmentTypeRepository = equipmentTypeRepository;
     }
 
     /**
@@ -45,32 +50,62 @@ public class RequestService {
     /**
      * Создает новую заявку
      *
+     * @param customerId           ID клиента (строка, может быть phoneNumber или другой идентификатор)
+     * @param address              адрес выполнения работ
+     * @param equipmentTypeId      ID типа оборудования
+     * @param customEquipmentType  пользовательский тип оборудования (если выбран тип "Другое")
+     * @param problemDescription   описание проблемы клиента
+     */
+    @Transactional
+    public Request createRequest(String customerId, String address, Integer equipmentTypeId,
+                                  String customEquipmentType, String problemDescription) {
+        Request request = new Request();
+        request.setCustomerId(customerId);
+        request.setAddress(address);
+        request.setStatus("new");
+        request.setProblemDescription(problemDescription);
+
+        if (equipmentTypeId != null) {
+            EquipmentType equipmentType = equipmentTypeRepository.findById(equipmentTypeId)
+                    .orElseThrow(() -> new IllegalArgumentException("Тип оборудования не найден: " + equipmentTypeId));
+            request.setEquipmentType(equipmentType);
+            
+            // Если выбран тип "Другое", сохраняем пользовательский тип
+            if (equipmentType.getIsOther() && customEquipmentType != null && !customEquipmentType.trim().isEmpty()) {
+                request.setCustomEquipmentType(customEquipmentType.trim());
+            }
+        }
+
+        Request saved = requestRepository.save(request);
+        log.info("Создана новая заявка: ID={}, клиент={}, адрес={}, тип оборудования={}",
+                saved.getId(), customerId, address, saved.getDisplayEquipmentType());
+        return saved;
+    }
+
+    /**
+     * Создает новую заявку (упрощённый метод для обратной совместимости)
+     *
      * @param customerId ID клиента (строка, может быть phoneNumber или другой идентификатор)
      * @param address    адрес выполнения работ
      */
     @Transactional
     public Request createRequest(String customerId, String address) {
-        Request request = new Request();
-        request.setCustomerId(customerId);
-        request.setAddress(address);
-        request.setStatus("new");
-
-        Request saved = requestRepository.save(request);
-        log.info("Создана новая заявка: ID={}, клиент={}, адрес={}", saved.getId(), customerId, address);
-        return saved;
+        return createRequest(customerId, address, null, null, null);
     }
 
     /**
      * Обновляет заявку (только для админа)
      */
     @Transactional
-    public Request updateRequest(Integer id, String customerId, String address, String status, Integer engineerId) {
+    public Request updateRequest(Integer id, String customerId, String address, String status, Integer engineerId,
+                                  Integer equipmentTypeId, String customEquipmentType, String problemDescription) {
         Request request = requestRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Заявка не найдена: " + id));
 
         request.setCustomerId(customerId);
         request.setAddress(address);
         request.setStatus(status);
+        request.setProblemDescription(problemDescription);
 
         if (engineerId != null) {
             User engineer = userRepository.findById(engineerId)
@@ -80,9 +115,38 @@ public class RequestService {
             request.setEngineer(null);
         }
 
+        if (equipmentTypeId != null) {
+            EquipmentType equipmentType = equipmentTypeRepository.findById(equipmentTypeId)
+                    .orElseThrow(() -> new IllegalArgumentException("Тип оборудования не найден: " + equipmentTypeId));
+            request.setEquipmentType(equipmentType);
+            
+            // Если выбран тип "Другое", сохраняем пользовательский тип
+            if (equipmentType.getIsOther() && customEquipmentType != null && !customEquipmentType.trim().isEmpty()) {
+                request.setCustomEquipmentType(customEquipmentType.trim());
+            } else {
+                request.setCustomEquipmentType(null);
+            }
+        } else {
+            request.setEquipmentType(null);
+            request.setCustomEquipmentType(null);
+        }
+
         Request saved = requestRepository.save(request);
         log.info("Заявка обновлена: ID={}, статус={}", saved.getId(), status);
         return saved;
+    }
+
+    /**
+     * Обновляет заявку (упрощённый метод для обратной совместимости)
+     */
+    @Transactional
+    public Request updateRequest(Integer id, String customerId, String address, String status, Integer engineerId) {
+        Request request = requestRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Заявка не найдена: " + id));
+        
+        return updateRequest(id, customerId, address, status, engineerId, 
+                request.getEquipmentType() != null ? request.getEquipmentType().getId() : null,
+                request.getCustomEquipmentType(), request.getProblemDescription());
     }
 
     /**
@@ -203,6 +267,47 @@ public class RequestService {
     }
 
     /**
+     * Переводит заявку в статус "completed" с сохранением информации о платеже
+     */
+    @Transactional
+    public Request completeRequestWithPayment(Integer requestId, String paymentMethod, String document1cId) {
+        Request request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Заявка не найдена: " + requestId));
+
+        if (!"in_progress".equals(request.getStatus())) {
+            throw new IllegalArgumentException("Заявка должна быть в статусе 'in_progress' для завершения");
+        }
+
+        request.setStatus("completed");
+        request.setPaymentMethod(paymentMethod);
+        request.setDocument1cId(document1cId);
+
+        Request saved = requestRepository.save(request);
+        log.info("Заявка завершена: ID={}, способ оплаты={}, документ 1С={}",
+                saved.getId(), paymentMethod, document1cId);
+        return saved;
+    }
+
+    /**
+     * Переводит заявку в статус "paid" (оплачена)
+     */
+    @Transactional
+    public Request markAsPaid(Integer requestId) {
+        Request request = requestRepository.findById(requestId)
+                .orElseThrow(() -> new IllegalArgumentException("Заявка не найдена: " + requestId));
+
+        if (!"completed".equals(request.getStatus())) {
+            throw new IllegalArgumentException("Заявка должна быть в статусе 'completed' для подтверждения оплаты");
+        }
+
+        request.setStatus("paid");
+
+        Request saved = requestRepository.save(request);
+        log.info("Заявка помечена как оплаченная: ID={}", saved.getId());
+        return saved;
+    }
+
+    /**
      * Отменяет заявку
      */
     @Transactional
@@ -210,7 +315,7 @@ public class RequestService {
         Request request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Заявка не найдена: " + requestId));
 
-        if ("completed".equals(request.getStatus()) || "canceled".equals(request.getStatus())) {
+        if ("completed".equals(request.getStatus()) || "paid".equals(request.getStatus()) || "canceled".equals(request.getStatus())) {
             throw new IllegalArgumentException("Нельзя отменить заявку в статусе '" + request.getStatus() + "'");
         }
 

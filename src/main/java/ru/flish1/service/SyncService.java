@@ -80,7 +80,6 @@ public class SyncService {
                             .orElse(new ru.flish1.entity.ServiceEntity());
 
                     service.setName(dto.getName());
-                    service.setSku(dto.getArticle() != null ? dto.getArticle() : dto.getId());
                     service.setNomenclatureId(dto.getId());
                     service.setPrice(dto.getPrice());
                     service.setUnit(dto.getUnit());

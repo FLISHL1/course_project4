@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import ru.flish1.client.OneCApiClient;
+import ru.flish1.dto.PaymentStatusResponse;
 import ru.flish1.entity.Part;
 import ru.flish1.entity.Request;
 import ru.flish1.entity.ReservePart;
@@ -42,12 +44,13 @@ public class RequestController {
     private final OrderService orderService;
     private final PartRepository partRepository;
     private final ServiceRepository serviceRepository;
+    private final OneCApiClient oneCApiClient;
 
     public RequestController(RequestService requestService, CustomerRepository customerRepository,
                              UserRepository userRepository, UserService userService,
                              ReservePartRepository reservePartRepository,
                              OrderService orderService, PartRepository partRepository,
-                             ServiceRepository serviceRepository) {
+                             ServiceRepository serviceRepository, OneCApiClient oneCApiClient) {
         this.requestService = requestService;
         this.customerRepository = customerRepository;
         this.userRepository = userRepository;
@@ -56,6 +59,7 @@ public class RequestController {
         this.orderService = orderService;
         this.partRepository = partRepository;
         this.serviceRepository = serviceRepository;
+        this.oneCApiClient = oneCApiClient;
     }
 
 
@@ -66,10 +70,14 @@ public class RequestController {
     public String createRequest(
             @RequestParam("customerId") String customerId,
             @RequestParam("address") String address,
+            @RequestParam(value = "equipmentTypeId", required = false) Integer equipmentTypeId,
+            @RequestParam(value = "customEquipmentType", required = false) String customEquipmentType,
+            @RequestParam(value = "problemDescription", required = false) String problemDescription,
             RedirectAttributes redirectAttributes
     ) {
         try {
-            Request request = requestService.createRequest(customerId, address);
+            Request request = requestService.createRequest(customerId, address, equipmentTypeId, 
+                    customEquipmentType, problemDescription);
             redirectAttributes.addFlashAttribute("successMessage", "Заявка успешно создана (ID: " + request.getId() + ")");
             return "redirect:/requests/" + request.getId();
         } catch (Exception e) {
@@ -91,10 +99,14 @@ public class RequestController {
             @RequestParam("address") String address,
             @RequestParam("status") String status,
             @RequestParam(value = "engineerId", required = false) Integer engineerId,
+            @RequestParam(value = "equipmentTypeId", required = false) Integer equipmentTypeId,
+            @RequestParam(value = "customEquipmentType", required = false) String customEquipmentType,
+            @RequestParam(value = "problemDescription", required = false) String problemDescription,
             RedirectAttributes redirectAttributes
     ) {
         try {
-            requestService.updateRequest(id, customerId, address, status, engineerId);
+            requestService.updateRequest(id, customerId, address, status, engineerId,
+                    equipmentTypeId, customEquipmentType, problemDescription);
             redirectAttributes.addFlashAttribute("successMessage", "Заявка успешно обновлена");
             return "redirect:/requests/" + id;
         } catch (Exception e) {
@@ -268,10 +280,7 @@ public class RequestController {
                 }
             }
 
-            // Сначала переводим заявку в статус completed
-            requestService.completeRequestStatus(id);
-
-            // Затем отправляем заказ в 1С (включая использованные запчасти из резервирований)
+            // Отправляем заказ в 1С (включая использованные запчасти из резервирований)
             // Материалы берутся из зарезервированных запчастей (использованные)
             OrderService.OrderResult result = orderService.createAndSendOrderFromRequest(
                     id,
@@ -284,9 +293,23 @@ public class RequestController {
             );
 
             if (result.isSuccess()) {
-                redirectAttributes.addFlashAttribute("successMessage",
-                        "Заявка завершена. Заказ успешно отправлен в 1С. Документ: " + result.getDocument1cNumber());
+                // Завершаем заявку с сохранением информации о платеже
+                requestService.completeRequestWithPayment(id, paymentMethod, result.getDocument1cId());
+                
+                // Если оплата наличными, сразу помечаем как оплаченную (инженер принял деньги)
+                // Для других способов оплаты нужно проверить оплату через 1С
+                if ("cash".equals(paymentMethod)) {
+                    redirectAttributes.addFlashAttribute("successMessage",
+                            "Заявка завершена. Заказ успешно отправлен в 1С. Документ: " + result.getDocument1cNumber() + 
+                            ". Способ оплаты: наличные. Подтвердите получение оплаты.");
+                } else {
+                    redirectAttributes.addFlashAttribute("successMessage",
+                            "Заявка завершена. Заказ успешно отправлен в 1С. Документ: " + result.getDocument1cNumber() + 
+                            ". Ожидается подтверждение оплаты.");
+                }
             } else {
+                // Если отправка в 1С не удалась, всё равно завершаем заявку
+                requestService.completeRequestWithPayment(id, paymentMethod, null);
                 redirectAttributes.addFlashAttribute("errorMessage",
                         "Заявка завершена, но ошибка при отправке заказа в 1С: " + result.getErrorMessage());
             }
@@ -315,6 +338,104 @@ public class RequestController {
         } catch (Exception e) {
             log.error("Ошибка при отмене заявки", e);
             redirectAttributes.addFlashAttribute("errorMessage", "Ошибка при отмене заявки: " + e.getMessage());
+            return "redirect:/requests/" + id;
+        }
+    }
+
+    /**
+     * Проверка оплаты в 1С (для безналичных платежей)
+     */
+    @PostMapping("/{id}/check-payment")
+    @PreAuthorize("hasRole('ENGINEER')")
+    public String checkPayment(
+            @PathVariable Integer id,
+            RedirectAttributes redirectAttributes
+    ) {
+        try {
+            Request request = requestService.getRequestById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Заявка не найдена: " + id));
+
+            if (!"completed".equals(request.getStatus())) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Заявка должна быть в статусе 'Завершена' для проверки оплаты");
+                return "redirect:/requests/" + id;
+            }
+
+            if ("cash".equals(request.getPaymentMethod())) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Для наличной оплаты используйте кнопку 'Подтвердить получение оплаты'");
+                return "redirect:/requests/" + id;
+            }
+
+            if (request.getDocument1cId() == null) {
+                redirectAttributes.addFlashAttribute("errorMessage", "ID документа в 1С не найден. Невозможно проверить оплату.");
+                return "redirect:/requests/" + id;
+            }
+
+            // Запрос в 1С для проверки статуса оплаты
+            PaymentStatusResponse paymentStatus = oneCApiClient.checkPaymentStatus(request.getDocument1cId());
+
+            if (paymentStatus != null && Boolean.TRUE.equals(paymentStatus.getIsPaid())) {
+                // Оплата подтверждена - переводим в статус "paid"
+                requestService.markAsPaid(id);
+                redirectAttributes.addFlashAttribute("successMessage", 
+                        "Оплата подтверждена! Заявка переведена в статус 'Оплачена'. " + paymentStatus.getMessage());
+            } else {
+                redirectAttributes.addFlashAttribute("errorMessage", 
+                        "Оплата пока не поступила. Попробуйте проверить позже.");
+            }
+
+            return "redirect:/requests/" + id;
+        } catch (Exception e) {
+            log.error("Ошибка при проверке оплаты", e);
+            redirectAttributes.addFlashAttribute("errorMessage", "Ошибка при проверке оплаты: " + e.getMessage());
+            return "redirect:/requests/" + id;
+        }
+    }
+
+    /**
+     * Подтверждение получения наличной оплаты инженером
+     * Отправляет запрос в 1С для подтверждения наличной оплаты
+     */
+    @PostMapping("/{id}/confirm-cash-payment")
+    @PreAuthorize("hasRole('ENGINEER')")
+    public String confirmCashPayment(
+            @PathVariable Integer id,
+            RedirectAttributes redirectAttributes
+    ) {
+        try {
+            Request request = requestService.getRequestById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("Заявка не найдена: " + id));
+
+            if (!"completed".equals(request.getStatus())) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Заявка должна быть в статусе 'Завершена' для подтверждения оплаты");
+                return "redirect:/requests/" + id;
+            }
+
+            if (!"cash".equals(request.getPaymentMethod())) {
+                redirectAttributes.addFlashAttribute("errorMessage", "Этот метод только для подтверждения наличной оплаты");
+                return "redirect:/requests/" + id;
+            }
+
+            // Отправляем запрос в 1С для подтверждения наличной оплаты
+            if (request.getDocument1cId() != null) {
+                try {
+                    PaymentStatusResponse paymentResponse = oneCApiClient.confirmCashPayment(request.getDocument1cId());
+                    log.info("Наличная оплата подтверждена в 1С для документа {}: {}", 
+                            request.getDocument1cId(), paymentResponse != null ? paymentResponse.getMessage() : "OK");
+                } catch (Exception e) {
+                    log.warn("Не удалось отправить подтверждение наличной оплаты в 1С: {}", e.getMessage());
+                    // Продолжаем, даже если не удалось отправить в 1С
+                }
+            }
+
+            // Переводим в статус "paid"
+            requestService.markAsPaid(id);
+            redirectAttributes.addFlashAttribute("successMessage", 
+                    "Получение наличной оплаты подтверждено. Информация отправлена в 1С. Заявка переведена в статус 'Оплачена'.");
+
+            return "redirect:/requests/" + id;
+        } catch (Exception e) {
+            log.error("Ошибка при подтверждении оплаты", e);
+            redirectAttributes.addFlashAttribute("errorMessage", "Ошибка при подтверждении оплаты: " + e.getMessage());
             return "redirect:/requests/" + id;
         }
     }

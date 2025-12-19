@@ -107,6 +107,85 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /payment-status/{documentId}:
+    get:
+      tags:
+        - "Финансовые документы"
+      summary: "Проверить статус оплаты документа"
+      description: |
+        Метод проверяет статус оплаты документа в 1С по его идентификатору.
+        Используется для проверки оплаты заказов, оплаченных по карте или безналичным переводом.
+      operationId: checkPaymentStatus
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          description: "Уникальный идентификатор документа в 1С (GUID)."
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "Успешный ответ с информацией о статусе оплаты."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatusResponse'
+        '404':
+          description: "Документ не найден."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: "Ошибка аутентификации. Неверный или отсутствующий API-ключ."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /confirm-cash-payment/{documentId}:
+    post:
+      tags:
+        - "Финансовые документы"
+      summary: "Подтвердить наличную оплату документа"
+      description: |
+        Метод подтверждает получение наличной оплаты за документ в 1С.
+        Используется только для заказов с методом оплаты "cash" (наличные).
+        Инженер вызывает этот метод после получения наличных от клиента.
+      operationId: confirmCashPayment
+      parameters:
+        - name: documentId
+          in: path
+          required: true
+          description: "Уникальный идентификатор документа в 1С (GUID)."
+          schema:
+            type: string
+      responses:
+        '200':
+          description: "Наличная оплата успешно подтверждена."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentStatusResponse'
+        '404':
+          description: "Документ не найден."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: "Документ уже оплачен или метод оплаты не наличные."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: "Ошибка аутентификации. Неверный или отсутствующий API-ключ."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     # --- Схемы для GET-запросов (справочники) ---
@@ -129,6 +208,10 @@ components:
         unit:
           type: string
           description: "Единица измерения (например, шт, час)."
+        price:
+          type: number
+          format: double
+          description: "Цена за единицу номенклатуры."
 
     # --- Схемы для POST-запроса (создание документа) ---
     CompletedOrderPayload:
@@ -156,6 +239,11 @@ components:
           description: "Метод оплаты заказа."
           enum: [cash, card, transfer]
           example: "card"
+        isPaid:
+          type: boolean
+          description: "Статус оплаты документа. По умолчанию false (не оплачен). Для безналичных платежей 1С обновляет статус автоматически при поступлении оплаты."
+          default: false
+          example: false
         services:
           type: array
           description: "Список оказанных услуг."
@@ -215,6 +303,28 @@ components:
           type: string
           description: "Человекочитаемое описание ошибки."
           example: "Контрагент с ИНН '7701234567' не найден в справочнике 1С."
+
+    PaymentStatusResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+          description: "Идентификатор документа в 1С."
+        isPaid:
+          type: boolean
+          description: "Флаг оплаты документа (true - оплачен, false - не оплачен)."
+        paidAt:
+          type: string
+          format: date-time
+          description: "Дата и время оплаты (если оплачен)."
+        paymentMethod:
+          type: string
+          description: "Способ оплаты."
+          enum: [cash, card, transfer]
+        message:
+          type: string
+          description: "Сообщение о статусе оплаты."
+          example: "Документ оплачен"
 
   securitySchemes:
     ApiKeyAuth:

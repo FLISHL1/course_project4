@@ -43,6 +43,38 @@ public class Request {
     @JsonIgnore
     private User engineer;
 
+    /**
+     * Тип оборудования
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "equipment_type_id")
+    @JsonIgnore
+    private EquipmentType equipmentType;
+
+    /**
+     * Пользовательский тип оборудования (используется когда выбран тип "Другое")
+     */
+    @Column(name = "custom_equipment_type")
+    private String customEquipmentType;
+
+    /**
+     * Описание проблемы клиента
+     */
+    @Column(name = "problem_description", columnDefinition = "TEXT")
+    private String problemDescription;
+
+    /**
+     * Способ оплаты (cash - наличные, card - карта, transfer - перевод)
+     */
+    @Column(name = "payment_method")
+    private String paymentMethod;
+
+    /**
+     * ID документа в 1С (для проверки оплаты)
+     */
+    @Column(name = "document_1c_id")
+    private String document1cId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -53,12 +85,16 @@ public class Request {
     }
 
     public Request(Integer id, String customerId, String address, String status, User engineer,
+                   EquipmentType equipmentType, String customEquipmentType, String problemDescription,
                    LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.customerId = customerId;
         this.address = address;
         this.status = status;
         this.engineer = engineer;
+        this.equipmentType = equipmentType;
+        this.customEquipmentType = customEquipmentType;
+        this.problemDescription = problemDescription;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
@@ -132,5 +168,69 @@ public class Request {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public EquipmentType getEquipmentType() {
+        return equipmentType;
+    }
+
+    public void setEquipmentType(EquipmentType equipmentType) {
+        this.equipmentType = equipmentType;
+    }
+
+    public String getCustomEquipmentType() {
+        return customEquipmentType;
+    }
+
+    public void setCustomEquipmentType(String customEquipmentType) {
+        this.customEquipmentType = customEquipmentType;
+    }
+
+    public String getProblemDescription() {
+        return problemDescription;
+    }
+
+    public void setProblemDescription(String problemDescription) {
+        this.problemDescription = problemDescription;
+    }
+
+    /**
+     * Получает отображаемое название типа оборудования
+     * Если выбран тип "Другое", возвращает пользовательский тип
+     */
+    public String getDisplayEquipmentType() {
+        if (equipmentType != null && equipmentType.getIsOther() && customEquipmentType != null && !customEquipmentType.isEmpty()) {
+            return customEquipmentType;
+        }
+        return equipmentType != null ? equipmentType.getName() : null;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    public String getDocument1cId() {
+        return document1cId;
+    }
+
+    public void setDocument1cId(String document1cId) {
+        this.document1cId = document1cId;
+    }
+
+    /**
+     * Получает отображаемое название способа оплаты
+     */
+    public String getDisplayPaymentMethod() {
+        if (paymentMethod == null) return null;
+        return switch (paymentMethod) {
+            case "cash" -> "Наличные";
+            case "card" -> "Банковская карта";
+            case "transfer" -> "Безналичный перевод";
+            default -> paymentMethod;
+        };
     }
 }

@@ -1,0 +1,1039 @@
+openapi: 3.0.3
+info:
+  title: ServiceRoute Integration Module API
+  description: API для системы управления заявками на обслуживание с интеграцией 1С
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8080
+    description: Локальный сервер разработки
+  - url: https://api.example.com
+    description: Продакшн сервер
+
+tags:
+  - name: Аутентификация
+    description: Эндпоинты для аутентификации пользователей
+  - name: Заявки
+    description: Управление заявками на обслуживание
+  - name: Клиенты
+    description: Управление клиентами
+  - name: Номенклатура
+    description: Управление услугами и запчастями
+  - name: Заказы
+    description: Создание и отправка заказов в 1С
+
+paths:
+  /login:
+    get:
+      tags:
+        - Аутентификация
+      summary: Страница входа
+      description: Возвращает HTML страницу для входа в систему
+      responses:
+        '200':
+          description: HTML страница входа
+          content:
+            text/html:
+              schema:
+                type: string
+        '302':
+          description: Редирект на главную страницу (если пользователь уже авторизован)
+
+  /:
+    get:
+      tags:
+        - Заявки
+      summary: Главная страница
+      description: Возвращает главную HTML страницу приложения
+      responses:
+        '200':
+          description: HTML главная страница
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /requests:
+    get:
+      tags:
+        - Заявки
+      summary: Список всех заявок
+      description: Возвращает HTML страницу со списком всех заявок
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: HTML страница со списком заявок
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /requests/new:
+    get:
+      tags:
+        - Заявки
+      summary: Форма создания новой заявки
+      description: Возвращает HTML форму для создания новой заявки
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: HTML форма создания заявки
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /requests/create:
+    post:
+      tags:
+        - Заявки
+      summary: Создание новой заявки
+      description: Создает новую заявку на обслуживание
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - customerId
+                - address
+              properties:
+                customerId:
+                  type: string
+                  description: ID клиента или номер телефона
+                  example: "1234567890"
+                address:
+                  type: string
+                  description: Адрес выполнения работ
+                  example: "г. Москва, ул. Ленина, д. 1"
+                equipmentTypeId:
+                  type: integer
+                  description: ID типа оборудования (опционально)
+                  example: 1
+                customEquipmentType:
+                  type: string
+                  description: Пользовательский тип оборудования (если выбран тип "Другое")
+                  example: "Принтер HP"
+                problemDescription:
+                  type: string
+                  description: Описание проблемы клиента
+                  example: "Не включается"
+      responses:
+        '302':
+          description: Редирект на страницу созданной заявки
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/requests/123"
+        '400':
+          description: Ошибка валидации данных
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /requests/{id}:
+    get:
+      tags:
+        - Заявки
+      summary: Просмотр заявки
+      description: Возвращает HTML страницу с детальной информацией о заявке
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: HTML страница с информацией о заявке
+          content:
+            text/html:
+              schema:
+                type: string
+        '404':
+          description: Заявка не найдена
+
+  /requests/{id}/edit:
+    get:
+      tags:
+        - Заявки
+      summary: Форма редактирования заявки
+      description: Возвращает HTML форму для редактирования заявки (только для администраторов)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: HTML форма редактирования заявки
+          content:
+            text/html:
+              schema:
+                type: string
+        '403':
+          description: Доступ запрещен (требуется роль ADMIN)
+        '404':
+          description: Заявка не найдена
+
+  /requests/{id}/update:
+    post:
+      tags:
+        - Заявки
+      summary: Обновление заявки
+      description: Обновляет информацию о заявке (только для администраторов)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - customerId
+                - address
+                - status
+              properties:
+                customerId:
+                  type: string
+                  description: ID клиента или номер телефона
+                  example: "1234567890"
+                address:
+                  type: string
+                  description: Адрес выполнения работ
+                  example: "г. Москва, ул. Ленина, д. 1"
+                status:
+                  type: string
+                  description: Статус заявки (new, assigned, in_progress, completed, canceled)
+                  enum: [new, assigned, in_progress, completed, canceled]
+                  example: "in_progress"
+                engineerId:
+                  type: integer
+                  description: ID инженера (опционально)
+                  example: 5
+                equipmentTypeId:
+                  type: integer
+                  description: ID типа оборудования (опционально)
+                  example: 1
+                customEquipmentType:
+                  type: string
+                  description: Пользовательский тип оборудования
+                  example: "Принтер HP"
+                problemDescription:
+                  type: string
+                  description: Описание проблемы клиента
+                  example: "Не включается"
+      responses:
+        '302':
+          description: Редирект на страницу заявки
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/requests/1"
+        '400':
+          description: Ошибка валидации данных
+        '403':
+          description: Доступ запрещен (требуется роль ADMIN)
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /requests/{id}/assign:
+    post:
+      tags:
+        - Заявки
+      summary: Назначение заявки инженеру
+      description: Назначает заявку инженеру (переводит статус из new в assigned)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - engineerId
+              properties:
+                engineerId:
+                  type: integer
+                  description: ID инженера
+                  example: 5
+      responses:
+        '302':
+          description: Редирект на страницу заявки
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/requests/1"
+        '400':
+          description: Ошибка валидации данных
+        '403':
+          description: Доступ запрещен (требуется роль ADMIN или MANAGER)
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /requests/{id}/start:
+    post:
+      tags:
+        - Заявки
+      summary: Начало работы над заявкой
+      description: Переводит заявку в статус "В работе" (assigned -> in_progress)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '302':
+          description: Редирект на страницу заявки
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/requests/1"
+        '400':
+          description: Ошибка валидации данных
+        '403':
+          description: Доступ запрещен (требуется роль ENGINEER)
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /requests/{id}/reserve-parts:
+    get:
+      tags:
+        - Заявки
+      summary: Форма резервирования запчастей
+      description: Возвращает HTML форму для резервирования запчастей для заявки
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: HTML форма резервирования запчастей
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Заявка должна быть в статусе 'Назначена' или 'В работе'
+        '403':
+          description: Доступ запрещен (требуется роль ENGINEER)
+        '404':
+          description: Заявка не найдена
+
+    post:
+      tags:
+        - Заявки
+      summary: Резервирование запчастей для заявки
+      description: Резервирует запчасти для заявки
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                partIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: Список ID запчастей для резервирования
+                  example: [1, 2, 3]
+                quantities:
+                  type: array
+                  items:
+                    type: integer
+                  description: Количество каждой запчасти
+                  example: [2, 1, 5]
+      responses:
+        '302':
+          description: Редирект на страницу заявки
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/requests/1"
+        '400':
+          description: Ошибка валидации данных
+        '403':
+          description: Доступ запрещен (требуется роль ENGINEER)
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /requests/{id}/complete-form:
+    get:
+      tags:
+        - Заявки
+      summary: Форма завершения заявки
+      description: Возвращает HTML форму для завершения заявки и создания заказа
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: HTML форма завершения заявки
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Заявка должна быть в статусе 'В работе'
+        '403':
+          description: Доступ запрещен (требуется роль ENGINEER)
+        '404':
+          description: Заявка не найдена
+
+  /requests/{id}/complete:
+    post:
+      tags:
+        - Заявки
+      summary: Завершение заявки
+      description: Завершает заявку и отправляет заказ в 1С (in_progress -> completed)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - sourceOrderId
+                - paymentMethod
+              properties:
+                sourceOrderId:
+                  type: string
+                  description: ID исходного заказа в 1С
+                  example: "ORDER-12345"
+                paymentMethod:
+                  type: string
+                  description: Способ оплаты
+                  enum: [cash, card, transfer]
+                  example: "cash"
+                serviceIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: Список ID услуг
+                  example: [1, 2]
+                serviceQuantities:
+                  type: array
+                  items:
+                    type: number
+                    format: double
+                  description: Количество каждой услуги
+                  example: [1.0, 2.5]
+                reservePartIds:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  description: ID зарезервированных запчастей для обновления
+                  example: [1, 2]
+                usedQuantities:
+                  type: array
+                  items:
+                    type: integer
+                  description: Использованное количество для каждой зарезервированной запчасти
+                  example: [2, 1]
+                newPartIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: ID новых запчастей для добавления
+                  example: [3, 4]
+                newPartQuantities:
+                  type: array
+                  items:
+                    type: integer
+                  description: Количество новых запчастей
+                  example: [1, 2]
+                removeReservePartIds:
+                  type: array
+                  items:
+                    type: integer
+                    format: int64
+                  description: ID резервирований для удаления
+                  example: [5]
+      responses:
+        '302':
+          description: Редирект на страницу заявки
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/requests/1"
+        '400':
+          description: Ошибка валидации данных
+        '403':
+          description: Доступ запрещен (требуется роль ENGINEER)
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /requests/{id}/cancel:
+    post:
+      tags:
+        - Заявки
+      summary: Отмена заявки
+      description: Отменяет заявку (переводит в статус canceled)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '302':
+          description: Редирект на страницу заявки
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/requests/1"
+        '400':
+          description: Ошибка валидации данных
+        '403':
+          description: Доступ запрещен (требуется роль ADMIN или MANAGER)
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /requests/{id}/check-payment:
+    post:
+      tags:
+        - Заявки
+      summary: Проверка оплаты в 1С
+      description: Проверяет статус оплаты документа в 1С для безналичных платежей
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '302':
+          description: Редирект на страницу заявки
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/requests/1"
+        '400':
+          description: Ошибка валидации данных
+        '403':
+          description: Доступ запрещен (требуется роль ENGINEER)
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /requests/{id}/confirm-cash-payment:
+    post:
+      tags:
+        - Заявки
+      summary: Подтверждение получения наличной оплаты
+      description: Подтверждает получение наличной оплаты инженером и отправляет информацию в 1С
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '302':
+          description: Редирект на страницу заявки
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/requests/1"
+        '400':
+          description: Ошибка валидации данных
+        '403':
+          description: Доступ запрещен (требуется роль ENGINEER)
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /requests/{requestId}/order/new:
+    get:
+      tags:
+        - Заказы
+      summary: Форма создания заказа из завершенной заявки
+      description: Возвращает HTML форму для создания заказа из завершенной заявки
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: HTML форма создания заказа
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Заявка должна быть завершена
+        '404':
+          description: Заявка не найдена
+
+  /requests/{requestId}/order/create:
+    post:
+      tags:
+        - Заказы
+      summary: Создание и отправка заказа в 1С
+      description: Создает заказ из завершенной заявки и отправляет его в 1С
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          description: ID заявки
+          schema:
+            type: integer
+            example: 1
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - sourceOrderId
+                - paymentMethod
+              properties:
+                sourceOrderId:
+                  type: string
+                  description: ID исходного заказа в 1С
+                  example: "ORDER-12345"
+                paymentMethod:
+                  type: string
+                  description: Способ оплаты
+                  enum: [cash, card, transfer]
+                  example: "cash"
+                serviceIds:
+                  type: array
+                  items:
+                    type: integer
+                  description: Список ID услуг
+                  example: [1, 2]
+                serviceQuantities:
+                  type: array
+                  items:
+                    type: number
+                    format: double
+                  description: Количество каждой услуги
+                  example: [1.0, 2.5]
+      responses:
+        '200':
+          description: HTML страница с результатом создания заказа
+          content:
+            text/html:
+              schema:
+                type: string
+        '400':
+          description: Ошибка валидации данных
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /customers:
+    get:
+      tags:
+        - Клиенты
+      summary: Список всех клиентов
+      description: Возвращает HTML страницу со списком всех клиентов
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: HTML страница со списком клиентов
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /customers/create:
+    get:
+      tags:
+        - Клиенты
+      summary: Редирект на список клиентов
+      description: Перенаправляет на страницу списка клиентов
+      security:
+        - bearerAuth: []
+      responses:
+        '302':
+          description: Редирект на /customers
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/customers"
+
+    post:
+      tags:
+        - Клиенты
+      summary: Создание нового клиента
+      description: Создает нового клиента в системе
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - fullName
+                - phoneNumber
+              properties:
+                fullName:
+                  type: string
+                  description: Полное имя клиента
+                  example: "Иванов Иван Иванович"
+                phoneNumber:
+                  type: string
+                  description: Номер телефона клиента
+                  example: "+79991234567"
+                redirectTo:
+                  type: string
+                  description: URL для редиректа после создания (опционально)
+                  example: "/requests/new"
+      responses:
+        '302':
+          description: Редирект на страницу списка клиентов или указанный URL
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/customers"
+        '400':
+          description: Ошибка валидации данных или клиент с таким телефоном уже существует
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /nomenclature:
+    get:
+      tags:
+        - Номенклатура
+      summary: Список номенклатуры
+      description: Возвращает HTML страницу со списком услуг и запчастей
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: HTML страница со списком номенклатуры
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /nomenclature/sync:
+    post:
+      tags:
+        - Номенклатура
+      summary: Синхронизация номенклатуры из 1С
+      description: Синхронизирует услуги и запчасти из системы 1С
+      security:
+        - bearerAuth: []
+      responses:
+        '302':
+          description: Редирект на страницу номенклатуры
+          headers:
+            Location:
+              schema:
+                type: string
+                example: "/nomenclature"
+        '500':
+          description: Внутренняя ошибка сервера
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT токен для аутентификации
+
+  schemas:
+    Request:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID заявки
+          example: 1
+        customerId:
+          type: string
+          description: ID клиента или номер телефона
+          example: "1234567890"
+        address:
+          type: string
+          description: Адрес выполнения работ
+          example: "г. Москва, ул. Ленина, д. 1"
+        status:
+          type: string
+          description: Статус заявки
+          enum: [new, assigned, in_progress, completed, canceled, paid]
+          example: "in_progress"
+        equipmentTypeId:
+          type: integer
+          description: ID типа оборудования
+          example: 1
+        customEquipmentType:
+          type: string
+          description: Пользовательский тип оборудования
+          example: "Принтер HP"
+        problemDescription:
+          type: string
+          description: Описание проблемы клиента
+          example: "Не включается"
+        paymentMethod:
+          type: string
+          description: Способ оплаты
+          enum: [cash, card, transfer]
+          example: "cash"
+        document1cId:
+          type: string
+          description: ID документа в 1С
+          example: "DOC-12345"
+        createdAt:
+          type: string
+          format: date-time
+          description: Дата создания
+          example: "2024-01-15T10:30:00"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Дата обновления
+          example: "2024-01-15T14:20:00"
+
+    Customer:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID клиента
+          example: 1
+        fullName:
+          type: string
+          description: Полное имя клиента
+          example: "Иванов Иван Иванович"
+        phoneNumber:
+          type: string
+          description: Номер телефона клиента
+          example: "+79991234567"
+        createdAt:
+          type: string
+          format: date-time
+          description: Дата создания
+          example: "2024-01-15T10:30:00"
+
+    Service:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID услуги
+          example: 1
+        name:
+          type: string
+          description: Название услуги
+          example: "Ремонт принтера"
+        price:
+          type: number
+          format: double
+          description: Цена услуги
+          example: 1500.00
+        unit:
+          type: string
+          description: Единица измерения
+          example: "шт"
+        nomenclatureId:
+          type: string
+          description: ID номенклатуры в 1С
+          example: "NOM-12345"
+        updatedAt:
+          type: string
+          format: date-time
+          description: Дата обновления
+          example: "2024-01-15T10:30:00"
+
+    PaymentStatusResponse:
+      type: object
+      properties:
+        documentId:
+          type: string
+          description: ID документа в 1С
+          example: "DOC-12345"
+        isPaid:
+          type: boolean
+          description: Статус оплаты
+          example: true
+        paidAt:
+          type: string
+          description: Дата оплаты
+          example: "2024-01-15T14:20:00"
+        paymentMethod:
+          type: string
+          description: Способ оплаты
+          example: "card"
+        message:
+          type: string
+          description: Сообщение о статусе оплаты
+          example: "Оплата подтверждена"
+
+    CompletedOrderPayload:
+      type: object
+      properties:
+        sourceOrderId:
+          type: string
+          description: ID исходного заказа
+          example: "ORDER-12345"
+        completionDate:
+          type: string
+          format: date-time
+          description: Дата завершения заказа
+          example: "2024-01-15T14:20:00"
+        customerTaxId:
+          type: string
+          description: ИНН клиента
+          example: "1234567890"
+        services:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletedOrderItem'
+          description: Список услуг
+        materials:
+          type: array
+          items:
+            $ref: '#/components/schemas/CompletedOrderItem'
+          description: Список материалов
+        paymentMethod:
+          type: string
+          description: Способ оплаты
+          enum: [cash, card, transfer]
+          example: "cash"
+        isPaid:
+          type: boolean
+          description: Статус оплаты
+          example: false
+
+    CompletedOrderItem:
+      type: object
+      properties:
+        nomenclatureId:
+          type: string
+          description: ID номенклатуры в 1С
+          example: "NOM-12345"
+        quantity:
+          type: number
+          format: double
+          description: Количество
+          example: 2.0
+        price:
+          type: number
+          format: double
+          description: Цена
+          example: 1500.00
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Сообщение об ошибке
+          example: "Заявка не найдена"
+        message:
+          type: string
+          description: Детальное описание ошибки
+          example: "Заявка с ID 123 не найдена в системе"
+
+security:
+  - bearerAuth: []

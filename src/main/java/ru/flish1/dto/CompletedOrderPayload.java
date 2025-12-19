@@ -26,18 +26,25 @@ public class CompletedOrderPayload {
     @JsonProperty("paymentMethod")
     private String paymentMethod;
 
+    /**
+     * Статус оплаты документа (по умолчанию false - не оплачен)
+     */
+    @JsonProperty("isPaid")
+    private Boolean isPaid = false;
+
     public CompletedOrderPayload() {
     }
 
     public CompletedOrderPayload(String sourceOrderId, String completionDate, String customerTaxId,
                                  List<CompletedOrderItem> services, List<CompletedOrderItem> materials,
-                                 String paymentMethod) {
+                                 String paymentMethod, Boolean isPaid) {
         this.sourceOrderId = sourceOrderId;
         this.completionDate = completionDate;
         this.customerTaxId = customerTaxId;
         this.services = services;
         this.materials = materials;
         this.paymentMethod = paymentMethod;
+        this.isPaid = isPaid != null ? isPaid : false;
     }
 
     public String getSourceOrderId() {
@@ -86,5 +93,13 @@ public class CompletedOrderPayload {
 
     public void setPaymentMethod(String paymentMethod) {
         this.paymentMethod = paymentMethod;
+    }
+
+    public Boolean getIsPaid() {
+        return isPaid;
+    }
+
+    public void setIsPaid(Boolean isPaid) {
+        this.isPaid = isPaid != null ? isPaid : false;
     }
 }

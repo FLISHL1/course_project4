@@ -83,8 +83,9 @@ public class OrderService {
         Request request = requestRepository.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Заявка не найдена: " + requestId));
 
-        if (!"completed".equals(request.getStatus())) {
-            throw new IllegalArgumentException("Заявка должна быть завершена перед созданием заказа");
+        // Разрешаем создание заказа для заявок в статусе "in_progress" или "completed"
+        if (!"in_progress".equals(request.getStatus()) && !"completed".equals(request.getStatus())) {
+            throw new IllegalArgumentException("Заявка должна быть в статусе 'В работе' или 'Завершена' для создания заказа");
         }
 
         // Получаем клиента по customerId (phoneNumber)
@@ -208,6 +209,7 @@ public class OrderService {
         payload.setServices(services);
         payload.setMaterials(materials);
         payload.setPaymentMethod(paymentMethod);
+        payload.setIsPaid(false); // По умолчанию документ не оплачен, оплата подтверждается отдельно
 
         // Отправляем в 1C (не сохраняем в БД)
         try {

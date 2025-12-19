@@ -22,9 +22,9 @@ public interface RequestRepository extends JpaRepository<Request, Integer> {
 
     List<Request> findByEngineerIdOrderByCreatedAtDesc(Integer engineerId);
 
-    @Query("SELECT r FROM Request r LEFT JOIN FETCH r.engineer WHERE r.id = :id")
+    @Query("SELECT r FROM Request r LEFT JOIN FETCH r.engineer LEFT JOIN FETCH r.equipmentType WHERE r.id = :id")
     Optional<Request> findByIdWithEngineer(@Param("id") Integer id);
 
-    @Query("SELECT r FROM Request r LEFT JOIN FETCH r.engineer ORDER BY r.createdAt DESC")
+    @Query("SELECT r FROM Request r LEFT JOIN FETCH r.engineer LEFT JOIN FETCH r.equipmentType ORDER BY r.createdAt DESC")
     List<Request> findAllWithEngineerOrderByCreatedAtDesc();
 }
